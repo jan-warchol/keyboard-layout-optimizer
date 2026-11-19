@@ -3,10 +3,13 @@
 
 Each trial highlights 1-4 keys and shows the sequence to type cyclically
 (e.g. "u n u n ..." or "u n r u n r ..."), typed as if it were part of a
-word - separate key presses, not a back-and-forth oscillation or a sprint. Afterwards rate the discomfort on the number row keys 1-5
-(Backspace = redo, Del = skip).
+word - separate key presses, not a back-and-forth oscillation or a sprint.
+Afterwards rate the discomfort on the top row keys . u i o b = 1-5
+(Backspace = redo, Del = skip). Del during a trial pauses.
 
-Needs the measurement layer (see make_measurement_layer.py) to be active.
+Works on the measurement layer (see make_measurement_layer.py) or on layer 4
+(the typing layer, plain keys since 2026-11-19): both send the same keys
+except the number row and t1, which are recognised in both versions.
 Timestamps come from the kernel input device, not the terminal.
 
   python3 measure/measure.py run [--minutes 20] [--plan phase1|bigrams]
@@ -33,16 +36,19 @@ import termios
 import time
 import tty
 
-from model100 import DIAGRAM_ROWS, HOME_KEYS, LABEL, LAYER_KEYS, MEASURED, THUMB_ROW
+from model100 import BASE_LAYER_ALT, DIAGRAM_ROWS, HOME_KEYS, LABEL, LAYER_KEYS, MEASURED, THUMB_ROW
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "measurements")
 TRIALS = os.path.join(DATA, "trials.jsonl")
 
 CODE_TO_POS = {linux: pos for pos, (_label, _hid, linux) in LAYER_KEYS.items()}
+CODE_TO_POS.update({linux: pos for pos, linux in BASE_LAYER_ALT.items()})
 LABEL_TO_POS = {label: pos for pos, label in LABEL.items()}
 
-RATING_KEYS = {"r0c1": 1, "r0c2": 2, "r0c3": 3, "r0c4": 4, "r0c5": 5}
-REDO_KEY, SKIP_KEY, PAUSE_KEY = "r3c0", "r0c0", "palm"
+# Top row: the same keys on the measurement layer and on layer 4.
+RATING_KEYS = {"r1c1": 1, "r1c2": 2, "r1c3": 3, "r1c4": 4, "r1c5": 5}
+REDO_KEY, SKIP_KEY = "r3c0", "r0c0"
+PAUSE_KEYS = {"r0c0", "palm"}   # palm only sends a key on the measurement layer
 RATING_TEXT = "1 effortless · 2 fine · 3 some effort · 4 uncomfortable · 5 strain"
 
 # Protocol 1: 2-key cycles, 2 warm-up cycles, "comfortable pace", control
@@ -218,7 +224,7 @@ def run_trial(kb, pattern, header):
         screen(header, "", draw_keyboard(labels), "",
                f"   type cyclically:  {seq}", f"   {bar}  errors: {errors}", "", msg)
 
-    show("   start whenever ready   (palm = pause)")
+    show("   start whenever ready   (Del = pause)")
     open_presses = {}
     while nxt < total:
         for pos, down, t in kb.events(None):
@@ -228,7 +234,7 @@ def run_trial(kb, pattern, header):
                 if pos in open_presses:
                     presses[open_presses.pop(pos)][2] = t
                 continue
-            if pos == PAUSE_KEY:
+            if pos in PAUSE_KEYS:
                 return "paused", presses
             ok = pos == pattern[nxt % k]
             presses.append([pos, t, None, nxt if ok else -1])
@@ -263,7 +269,7 @@ def ask_rating(kb, header):
             status = (f"   selected: \x1b[30;43m {choice} – {RATING_NAMES[choice]} \x1b[0m"
                       "   → Spc / Ent to confirm, another number to change")
         screen(header, "", "   How did that feel?", "",
-               f"   number row:  {RATING_TEXT}",
+               f"   top row (. u i o b):  {RATING_TEXT}",
                "   Bsp = redo,   Del = skip (mark as weird)", "", status)
         pos, _ = kb.next_press()
         if pos == "quit":
@@ -358,10 +364,10 @@ def cmd_run(args):
 
     try:
         screen("Measurement session", "",
-               "   Activate the measurement layer (palm + outer home key).",
+               "   Use layer 4 or the measurement layer (palm + outer home key).",
                "   Type the shown sequence cyclically, as if it were part of a word:",
                "   separate presses, not an oscillation and not a sprint.",
-               "   Palm key pauses; Esc / Ctrl-C on any keyboard quits.", "",
+               "   Del pauses; Esc / Ctrl-C on any keyboard quits.", "",
                "   Press any measurement key to start.")
         if kb.next_press()[0] == "quit":
             return

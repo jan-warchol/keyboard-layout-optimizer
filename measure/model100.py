@@ -50,6 +50,14 @@ LAYER_KEYS = {
 }
 LABEL = {pos: v[0] for pos, v in LAYER_KEYS.items()}
 
+# Layer 4 (since the 2026-11-19 layout, all plain keys) sends the same keys as
+# the measurement layer except these: position -> Linux keycode.
+# r0c1 (LockTo #1) and palm (ShiftTo #5) send nothing there.
+BASE_LAYER_ALT = {
+    "r0c2": 105, "r0c3": 103, "r0c4": 108, "r0c5": 106,   # ← ↑ ↓ →
+    "t1": 100,                                            # AltGr
+}
+
 # Terminal drawing of the right half. Each cell is 5 chars wide.
 DIAGRAM_ROWS = [
     ["r0c0", None, "r0c1", "r0c2", "r0c3", "r0c4", "r0c5", "r0c6"],
