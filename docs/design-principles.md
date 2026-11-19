@@ -25,6 +25,72 @@ Each decision records *why*, so it can be revisited when the reason changes.
 layers 4/5, but avoiding layer 7's large jumps. *How many* letters belong on the
 base layer is a question for measurement, not a guess.
 
+## Layout structure
+
+### Pinned keys (decisions, not measured costs)
+
+Fixed by preference to shrink the search; the reason is recorded so the pin
+can be lifted if it turns out wrong.
+
+- **Inner index-stretch column (3 keys):** Enter, Backspace, Tab and similar
+  non-letter keys.
+- **Outer pinky column, bottom key:** `/` and `\`. Close to the normal
+  position, and it has worked well in practice. Too awkward for letters in
+  fast typing.
+- **Outer pinky column, middle two keys:** comfortable, letter candidates.
+- **Number row:** the index-finger keys (6 and 7 positions) and the
+  ring-finger key are hard to reach. The middle-finger key is reasonable;
+  the pinky-column key is easy to reach *with the ring finger* (how reliably
+  is still open).
+- Resulting base-layer letter slots: 15 (columns 6-0, rows 1-3) + 2 (outer
+  pinky middle) + 2 (number row middle, pinky-column) ≈ 19, or 18 if Space
+  goes into the grid. So the base layer holds roughly 13-20 letters; the
+  rest go to the second letter layer.
+
+### Thumb keys and modifiers
+
+- **Space is not required to be on a thumb key.** Thumb keys are scarce
+  and needed for held modifiers: Ctrl (most shortcuts), Shift, the
+  second-letter-layer key (AltGr-like), plus Super and Alt somewhere. Space
+  is the only usual thumb key that is never held together with others, so
+  it is the natural candidate to move into the grid. Layouts with Space in
+  the grid felt odd in earlier experiments, but are not ruled out; the
+  optimizer compares both (phase 1 measures the Space thumb, so costs are
+  comparable).
+- **Adjacency on the thumb arc matters.** Two adjacent thumb keys can be
+  pressed together by the thumb without trouble, so modifier pairs that are
+  used together (Ctrl+Shift, Ctrl+layer) must be adjacent. A third key can
+  be added by pressing the rightmost thumb key with the index finger, but
+  only when the letter being combined isn't pressed by the index finger.
+
+### Second letter layer
+
+- **Polish letters sit under their Latin letters** (ą under a, ł under l,
+  …, ź under x as in Polish programmer layout). Intuitive, and a starting
+  point rather than a final decision. The other layer-2 positions hold the
+  letters that don't fit the base layer, plus other characters.
+- **Not a hard constraint.** Rearrangements of this kind have worked in
+  the past, so the optimizer may move a Polish letter elsewhere on layer 2,
+  e.g. when its Latin letter ends up on layer 2 itself. Keeping the mapping
+  is a preference (a bonus or penalty in the score), not a rule.
+- **z on the base layer is a hard constraint** (common in Polish and in
+  shortcuts: Ctrl+Z; ~90% sure it belongs there anyway).
+- **x:** a base-layer candidate because of Ctrl+X (cut), not because of ź.
+- Model: cost(ą) = layer cost + cost of a's position (when the mapping is
+  kept).
+
+### Palm key: a modal layer for navigation and numbers
+
+- The palm key fails for letters (layers 4/5) because pressing it for one
+  key, releasing and pressing again moves the whole hand. It works well
+  when **held for a stretch of related actions**; it served well for arrows
+  and other non-printing keys in the default layout.
+- So the palm layer is for *modes* that aren't interleaved with letters:
+  **cursor movement/editing** and **numbers** (digits plus `.` and `,`, which
+  is what number entry usually needs). Numbers won't fit on the base layer,
+  and on the second letter layer they'd end up scattered in unrelated
+  positions.
+
 ## Scoring model
 
 1. **Measure, don't guess.** Costs come from timed trials on the actual
@@ -59,8 +125,8 @@ base layer is a question for measurement, not a guess.
     directly on layer 4 is equivalent and avoids switching layers. Palm and
     r0c1 send nothing there, so they can't be measured on layer 4.
   - Caveat: sequences that are frequent in current layer-4/5 typing may
-    come out a bit faster due to practice. Acceptable because that practice
-    is only a few weeks old; watch for it when fitting the model.
+    come out a bit faster due to practice. That layout has been in use for
+    about 2 months; watch for practice effects when fitting the model.
 - **Trial:** 1-4 highlighted keys typed cyclically (1 2 1 2 … or
   1 2 3 1 2 3 …): 30 presses for single-key repeats, 20 cycles for pairs,
   13 for triples, 10 for 4-key sequences. Warm-up is at least 8 presses
@@ -111,8 +177,16 @@ So measurement proceeds from the simplest movements:
    middle, ring, pinky (`n r l h`) and the Space thumb. Same-key repeats (5),
    finger pairs (10), finger triples in both cyclic orders (20), inward and
    outward 4-finger rolls (2): 37 patterns × 3 sessions.
-2. **Same finger, different keys** (e.g. `n u`, `n m`, `u m`), anchored by a
-   home-row key on another finger (e.g. `n u r`) so the hand can't shift.
+2. **Same finger, different keys.**
+   a. *Unanchored* (`--plan phase2a`): two keys of one finger typed
+      alternately, the hand free to settle into a comfortable position.
+      Vertical (top-home, home-bottom, top-bottom) for index..pinky,
+      horizontal (inner/outer column, each row) for index and pinky:
+      18 patterns. Measures the finger's own movement; not a typing cost
+      by itself.
+   b. *Anchored* by a home-row key on another finger (e.g. `n u r`) so the
+      hand can't shift. The difference from 2a is the stretch penalty of
+      moving one finger while the others stay.
 3. **Off-home positions as differences:** replace one key of a home-row
    cycle with an off-home key on the same finger (`n r l r` → `. r l r`);
    the change in time and rating is the cost of that position in context.
@@ -138,22 +212,75 @@ right-hand-only bigrams on the layer-0 layout) showed:
 
 ## Corpus and weighting
 
-- Sources: keystats logs (mostly short text and shell commands, much text is
-  dictated), plus text and code samples to be provided.
-- Weighting between Polish / English / code / shell is **deliberately left
-  open**: we'll run the optimizer with different weightings and compare the
-  resulting layouts before deciding.
+- **What is typed by hand is what counts.** Most code is written by agents
+  and longer prose is dictated; hand typing is short corrections, a few
+  words where dictation doesn't integrate, shell commands, and editing /
+  cursor movement (the hardest to cover by dictation).
+- **Weights come from the keylogs, not from guesses about content types.**
+  Keystats logs record focus changes (`# focus {"app": ...}`), so typing
+  can be split by context (terminal, editor, browser). Dictated text,
+  agent-written code and pasted text never reach the keylog, so the log
+  already reflects the real mix.
+  - The current logs are on the layer-4/5 layout, in use for ~2 months.
+    They are small so far (~8k presses over 3 days, much of it measurement
+    trials). The 2025 logs are bigger but from two-handed typing with
+    little dictation, so their mix is different.
+- **Corpora fill in the bigram statistics**; the keylogs set proportions.
+  Rare bigrams barely affect the base layer (the score is dominated by the
+  few hundred most frequent bigrams), so the point of corpora isn't the rare
+  tail; it's stable estimates of the common bigrams, which a few thousand
+  logged presses don't give.
+- Sources: keystats logs, shell history, text and code samples to be
+  provided. Final weighting is still checked by running the optimizer with
+  different weightings and comparing the resulting layouts.
+
+### Shortcuts are a separate frequency table
+
+- Letter frequency in text underrates letters used in shortcuts (V is
+  rare in text but Ctrl+V is very frequent; same for Z, C, S, W…).
+  Count *letter pressed with Ctrl/Alt/Super held* from the keylogs as a
+  second table, scored alongside the text bigrams.
+- A shortcut on a layer-2 letter needs Ctrl + layer key + letter: possible
+  with adjacent thumb keys, but less obvious and more effortful.
+  Frequent shortcut letters should earn base-layer places.
+- One-shot modifiers would remove the need to stack held keys, but it's
+  unknown how well they suit the user (who is used to chording). To be tried.
+
+### Shell history: notes for processing
+
+Years of history exist; location to be confirmed (`~/.bash_history` here
+has only 14 lines). Raw history overstates what is actually typed, so filter:
+
+- **Autocompletion:** for tokens that are paths, filenames, git branches or
+  long command names, keep only the first 2-3 characters of each path
+  component, followed by Tab.
+- **Pasted text:** drop tokens that look pasted: URLs, hashes, UUIDs,
+  very long tokens.
+- **Recalled commands:** collapse consecutive duplicates and cap how often
+  one command counts; repeats are mostly recalled with Up / Ctrl-R, not
+  retyped.
+- **Check the filters:** compare character and bigram frequencies of the
+  filtered history against keystats logs captured while the terminal was
+  focused.
 
 ## Open questions
 
 - How to combine time, rating and error rate into a single cost.
 - Does cyclic `ABAB` timing represent `A→B` inside real text well enough?
   (Check with trigram trials and with typing tests on candidate layouts.)
-- Thumb keys: Space needs a thumb key; can thumbs also take letters?
-- Layer access for rare characters: thumb-held layer vs one-shot vs chords.
-  Measure "layer key + letter" as a phase 2 pattern type.
-- Polish diacritics: AltGr combination vs dedicated keys vs layer.
-- Shortcuts (Ctrl+C/V/Z/S/W, Alt+Tab are very frequent): where do modifiers go?
+- Space on a thumb key vs in the grid; which modifiers get the thumb keys,
+  in which order on the arc; where Super and Alt go.
+- **Layer-switch cost needs its own experiment.** Proposal: word-like
+  cycles with one layer-2 key inside (`n [L+r] l`) vs the same cycle on the
+  base layer (`n r l`); the difference is the switch cost in context. Run
+  with a held layer key and a one-shot layer key, and add Ctrl + layer +
+  letter for shortcuts.
+- One-shot vs chorded modifiers (see shortcuts).
+- How reliable is reaching the pinky-column number key with the ring finger?
+- Does x earn a base-layer slot through Ctrl+X (cut)? The shortcut table
+  will tell.
+- Editing and navigation volume (arrows, Home/End, word jumps,
+  Ctrl+Backspace): measure from keylogs to size the palm layer.
 
 ## Decision log
 
@@ -168,3 +295,10 @@ right-hand-only bigrams on the layer-0 layout) showed:
   on the home row + Space thumb, measured in 3 sessions; off-home positions
   later, in longer sequences and as differences against home-row cycles.
   Inward/outward asymmetry treated as real. No pacing guide.
+- 2026-11-19 — Layout structure: inner index column for Enter/Backspace/Tab,
+  bottom outer pinky key for `/` `\`; Space may go into the grid (thumb keys
+  are needed for modifiers); Polish letters under their Latin letters on the
+  second letter layer (a preference, not a rule), z pinned to the base
+  layer; palm key = held modal
+  layer for navigation and numbers. Weighting from keylogs (by focused app),
+  shortcuts counted as a separate table.
