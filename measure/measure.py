@@ -85,6 +85,32 @@ def column(pos):
     return 0 if pos.startswith("t") else int(pos[3])   # thumb counts as innermost
 
 
+def finger(pos):
+    if pos.startswith("t"):
+        return "thumb"
+    return {0: "index", 1: "index", 2: "index", 3: "middle", 4: "ring",
+            5: "pinky", 6: "pinky"}[int(pos[3])]
+
+
+def spread_fingers(todo, done):
+    """Reorder so consecutive trials share as few fingers as possible (fatigue
+    builds up when one finger is measured several times in a row). Patterns
+    measured in fewer sessions still come first."""
+    rest, out, recent = list(todo), [], []
+    while rest:
+        def key(ip):
+            i, p = ip
+            f = {finger(x) for x in p}
+            load = sum(len(f & r) * w for r, w in zip(recent, (2, 1)))
+            # prefer fingers with many trials left, so they don't pile up at the end
+            backlog = sum(1 for q in rest if f & {finger(x) for x in q})
+            return (done.get(p, 0), load, -backlog, i)
+        i, p = min(enumerate(rest), key=key)
+        out.append(rest.pop(i))
+        recent = [{finger(x) for x in p}] + recent[:1]
+    return out
+
+
 def display_order(pattern):
     """Rotate a cyclic pattern so it is shown starting where the movement starts:
     the largest jump comes at the wrap-around (e.g. 'n h l' -> 'h l n')."""
@@ -328,6 +354,7 @@ def cmd_run(args):
     todo = [p for p in plan if done.get(p, 0) < args.repeats]
     random.shuffle(todo)
     todo.sort(key=lambda p: (done.get(p, 0), tier(p)))
+    todo = spread_fingers(todo, done)
     total_plan = len(plan) * args.repeats
 
     session = datetime.datetime.now().isoformat(timespec="seconds")
