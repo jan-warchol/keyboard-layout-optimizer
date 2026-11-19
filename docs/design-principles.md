@@ -195,6 +195,18 @@ So measurement proceeds from the simplest movements:
 The model then combines finger-pair costs (phase 1) with per-position
 extra costs (phases 2-3).
 
+#### Status and plan
+
+| Phase | Patterns | Method tested? | Sessions done |
+|---|---|---|---|
+| 1 finger baseline | 37 | yes: pairs repeat within ~5%, triples/rolls within ~13% but still being learned | 2 (same day) |
+| 2a same finger, unanchored | 18 | yes: 2-key alternation, the most repeatable type | 0 |
+| 2b same finger, anchored | ~18 | no, pattern design to be decided | 0 |
+| 3 off-home positions | ~26-50 | no, pattern design to be decided | 0 |
+
+Each phase: 3 sessions, at least one on a different day. After phases 1-2a:
+check repeatability, then design and pilot 2b/3, then fit the model.
+
 ### Why not use timings from everyday typing
 
 Analysis of the 2025 two-handed logs (`analysis/legacy_right_hand_timings.*`,

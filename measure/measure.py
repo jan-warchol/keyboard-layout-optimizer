@@ -16,6 +16,7 @@ Timestamps come from the kernel input device, not the terminal.
                                  [--patterns FILE] [--repeats N]
       phase1:  home-row fingers + Space thumb (the baseline, see
                docs/design-principles.md); each pattern once per session
+      phase2a: same finger, two different keys, hand position free
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
             e.g. "u n r" or "r1c2 r2c2 r2c3"
@@ -118,7 +119,19 @@ def phase1_plan():
     return [canonical(p) for p in pats]
 
 
-PLANS = {"phase1": phase1_plan, "bigrams": bigram_plan}
+def phase2a_plan():
+    """Same finger, different keys, unanchored: the hand may settle into whatever
+    position suits the movement. Vertical moves for index..pinky (top-home,
+    home-bottom, top-bottom) and horizontal moves for index and pinky."""
+    pats = []
+    for c in range(2, 6):
+        pats += [(f"r1c{c}", f"r2c{c}"), (f"r2c{c}", f"r3c{c}"), (f"r1c{c}", f"r3c{c}")]
+    for a, b in ((1, 2), (5, 6)):
+        pats += [(f"r{r}c{a}", f"r{r}c{b}") for r in (1, 2, 3)]
+    return [canonical(p) for p in pats]
+
+
+PLANS = {"phase1": phase1_plan, "phase2a": phase2a_plan, "bigrams": bigram_plan}
 
 
 def load_trials():
