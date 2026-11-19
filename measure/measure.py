@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """Measure the cost of key-position sequences on the right half of a Model 100.
 
-Each trial highlights 1-3 keys and shows the sequence to type cyclically
-(e.g. "u n u n ..." or "u n r u n r ...") at a comfortable, fluent pace -
-not a sprint. Afterwards rate the discomfort on the number row keys 1-5
+Each trial highlights 1-4 keys and shows the sequence to type cyclically
+(e.g. "u n u n ..." or "u n r u n r ..."), typed as if it were part of a
+word - separate key presses, not a back-and-forth oscillation or a sprint. Afterwards rate the discomfort on the number row keys 1-5
 (Backspace = redo, Del = skip).
 
 Needs the measurement layer (see make_measurement_layer.py) to be active.
 Timestamps come from the kernel input device, not the terminal.
 
-  python3 measure/measure.py run [--minutes 20] [--patterns FILE]
+  python3 measure/measure.py run [--minutes 20] [--plan phase1|bigrams]
+                                 [--patterns FILE] [--repeats N]
+      phase1:  home-row fingers + Space thumb (the baseline, see
+               docs/design-principles.md); each pattern once per session
+      bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
             e.g. "u n r" or "r1c2 r2c2 r2c3"
   python3 measure/measure.py stats
@@ -41,13 +45,22 @@ RATING_KEYS = {"r0c1": 1, "r0c2": 2, "r0c3": 3, "r0c4": 4, "r0c5": 5}
 REDO_KEY, SKIP_KEY, PAUSE_KEY = "r3c0", "r0c0", "palm"
 RATING_TEXT = "1 effortless · 2 fine · 3 some effort · 4 uncomfortable · 5 strain"
 
-CYCLES = {1: 30, 2: 20, 3: 13}  # cycles per trial, by pattern length
-WARMUP_CYCLES = 2
+# Protocol 1: 2-key cycles, 2 warm-up cycles, "comfortable pace", control
+# every 13th trial. Protocol 2: longer warm-up, "as part of a word",
+# controls at session start and end, phase-1 baseline plan.
+PROTOCOL = 2
+CYCLES = {1: 30, 2: 20, 3: 13, 4: 10}       # cycles per trial, by pattern length
+WARMUP_CYCLES = {1: 8, 2: 5, 3: 3, 4: 3}    # >= 8 presses before measuring
 PAUSE_MS = 1500                 # longer gaps don't count as transitions
 BREAK_EVERY_S = 13 * 60
-CONTROL_EVERY = 13
-CONTROLS = [("r2c2", "r2c3"), ("r1c3", "r3c2"), ("r2c2", "r2c5")]
 CORE = {f"r{r}c{c}" for r in (1, 2, 3) for c in range(1, 6)}
+
+# Phase 1 baseline: home row index..pinky plus the Space thumb.
+FINGERS = ["r2c2", "r2c3", "r2c4", "r2c5", "t4"]
+ROLL_IN = ("r2c5", "r2c4", "r2c3", "r2c2")
+ROLL_OUT = tuple(reversed(ROLL_IN))
+# Run at the start and end of every session to track drift and fatigue.
+CONTROLS = [("r2c2", "r2c3"), ROLL_IN]
 
 EVENT = struct.Struct("llHHi")
 EV_KEY = 1
@@ -59,6 +72,21 @@ def canonical(pattern):
     """Cyclic patterns are equal up to rotation: 'AB' == 'BA'."""
     p = list(pattern)
     return min(tuple(p[i:] + p[:i]) for i in range(len(p)))
+
+
+def column(pos):
+    return 0 if pos.startswith("t") else int(pos[3])   # thumb counts as innermost
+
+
+def display_order(pattern):
+    """Rotate a cyclic pattern so it is shown starting where the movement starts:
+    the largest jump comes at the wrap-around (e.g. 'n h l' -> 'h l n')."""
+    p = list(pattern)
+    if len(p) < 3:
+        return p
+    jump = lambda i: abs(column(p[i - 1]) - column(p[i]))
+    start = max(range(len(p)), key=jump)
+    return p[start:] + p[:start]
 
 
 def tier(pattern):
@@ -75,6 +103,18 @@ def bigram_plan():
     return [canonical(p) for p in pats]
 
 
+def phase1_plan():
+    """Same-key repeats, finger pairs, finger triples (both cyclic orders), 4-finger rolls."""
+    pats = [(p,) for p in FINGERS] + list(itertools.combinations(FINGERS, 2))
+    for a, b, c in itertools.combinations(FINGERS, 3):
+        pats += [(a, b, c), (a, c, b)]
+    pats += [ROLL_IN, ROLL_OUT]
+    return [canonical(p) for p in pats]
+
+
+PLANS = {"phase1": phase1_plan, "bigrams": bigram_plan}
+
+
 def load_trials():
     if not os.path.exists(TRIALS):
         return []
@@ -85,12 +125,13 @@ def load_trials():
 def transitions(trial):
     """Valid (from, to, ms) transitions of a trial, warm-up and errors excluded."""
     k = len(trial["pattern"])
+    warmup = trial.get("warmup_cycles", WARMUP_CYCLES[k])
     out, prev = [], None
     for pos, t_down, _t_up, idx in trial["presses"]:
         if idx < 0:            # wrong key: breaks the chain
             prev = None
             continue
-        if prev is not None and idx >= WARMUP_CYCLES * k:
+        if prev is not None and idx >= warmup * k:
             gap = t_down - prev[1]
             if gap <= PAUSE_MS:
                 out.append((prev[0], pos, gap))
@@ -250,10 +291,11 @@ def summarize(pattern, presses):
 
 def cmd_run(args):
     os.makedirs(DATA, exist_ok=True)
-    done = {}
+    done = {}   # canonical pattern -> number of sessions with an ok protocol-2 trial
     for t in load_trials():
-        if t["status"] == "ok" and not t.get("control"):
-            done[canonical(t["pattern"])] = done.get(canonical(t["pattern"]), 0) + 1
+        if t["status"] == "ok" and not t.get("control") and t.get("protocol", 1) >= PROTOCOL:
+            c = canonical(t["pattern"])
+            done[c] = done.get(c, 0) + 1
     if args.patterns:
         with open(args.patterns) as f:
             plan = [canonical([LABEL_TO_POS.get(x, x) for x in l.split()])
@@ -262,10 +304,11 @@ def cmd_run(args):
         if bad:
             sys.exit(f"unknown keys in {args.patterns}: {sorted(bad)}")
     else:
-        plan = bigram_plan()
+        plan = PLANS[args.plan]()
+    # each pattern at most once per session; least-measured first
     todo = [p for p in plan if done.get(p, 0) < args.repeats]
     random.shuffle(todo)
-    todo.sort(key=tier)
+    todo.sort(key=lambda p: (done.get(p, 0), tier(p)))
     total_plan = len(plan) * args.repeats
 
     session = datetime.datetime.now().isoformat(timespec="seconds")
@@ -275,78 +318,127 @@ def cmd_run(args):
     tty.setraw(fd)
     t_start = t_break = time.time()
     n, last_summary = 0, ""
-    try:
-        screen("Measurement session", "",
-               "   Activate the measurement layer (palm + outer home key).",
-               "   Type the shown sequence cyclically at a comfortable, fluent pace.",
-               "   Palm key pauses; Esc / Ctrl-C on any keyboard quits.", "",
-               "   Press any measurement key to start.")
-        if kb.next_press()[0] == "quit":
-            return
-        while todo and time.time() - t_start < args.minutes * 60:
-            control = n > 0 and n % CONTROL_EVERY == 0
-            pattern = list(random.choice(CONTROLS)) if control else list(todo[0])
-            if not control and len(pattern) == 2 and random.random() < 0.5:
-                pattern.reverse()   # balance which key comes first
+
+    def measure(pattern, control, label):
+        """Run one trial until saved or abandoned: returns 'ok', 'skipped' or 'quit'."""
+        nonlocal n, last_summary
+        while True:
             elapsed = int((time.time() - t_start) / 60)
-            header = (f"trial {sum(done.values()) + 1}/{total_plan}"
-                      f"{'  (control)' if control else ''}   ·   {elapsed} min   ·   "
-                      f"previous: {last_summary or '-'}")
+            header = (f"{label}   ·   {elapsed} min   ·   previous: {last_summary or '-'}")
             status, presses = run_trial(kb, pattern, header)
             if status == "quit":
-                break
+                return "quit"
             if status == "paused":
                 screen("Paused.", "", "   Press any measurement key to continue, Esc to quit.")
                 if kb.next_press()[0] == "quit":
-                    break
+                    return "quit"
                 continue
             rating = ask_rating(kb, header)
             if rating == "quit":
-                break
+                return "quit"
             if rating == "redo":
                 continue
+            k = len(pattern)
             rec = {"session": session, "time": datetime.datetime.now().isoformat(timespec="seconds"),
-                   "pattern": pattern, "control": control,
+                   "protocol": PROTOCOL, "pattern": pattern, "control": control,
                    "status": "skipped" if rating == "skip" else "ok",
                    "rating": rating if isinstance(rating, int) else None,
-                   "cycles": CYCLES[len(pattern)], "warmup_cycles": WARMUP_CYCLES,
+                   "cycles": CYCLES[k], "warmup_cycles": WARMUP_CYCLES[k],
                    "presses": presses}
             with open(TRIALS, "a") as f:
                 f.write(json.dumps(rec) + "\n")
             last_summary = summarize(pattern, presses)
             n += 1
-            if not control:
-                todo.pop(0)
-                if rec["status"] == "ok":
-                    c = canonical(pattern)
-                    done[c] = done.get(c, 0) + 1
+            return rec["status"]
+
+    def controls(when):
+        for i, c in enumerate(CONTROLS):
+            if measure(display_order(c), True, f"control {i + 1}/{len(CONTROLS)} ({when})") == "quit":
+                return "quit"
+
+    try:
+        screen("Measurement session", "",
+               "   Activate the measurement layer (palm + outer home key).",
+               "   Type the shown sequence cyclically, as if it were part of a word:",
+               "   separate presses, not an oscillation and not a sprint.",
+               "   Palm key pauses; Esc / Ctrl-C on any keyboard quits.", "",
+               "   Press any measurement key to start.")
+        if kb.next_press()[0] == "quit":
+            return
+        if controls("start") == "quit":
+            return
+        measured = sum(min(v, args.repeats) for p, v in done.items() if p in set(plan))
+        while todo and time.time() - t_start < args.minutes * 60:
+            pattern = display_order(todo[0])
+            if len(pattern) == 2 and random.random() < 0.5:
+                pattern.reverse()   # balance which key comes first
+            status = measure(pattern, False, f"trial {measured + 1}/{total_plan}")
+            if status == "quit":
+                screen("Ending the session.", "",
+                       "   Any measurement key: run the end controls first.",
+                       "   Esc: quit without them.")
+                if kb.next_press()[0] != "quit":
+                    controls("end")
+                return
+            todo.pop(0)
+            if status == "ok":
+                measured += 1
             if time.time() - t_break > BREAK_EVERY_S:
                 screen("Time for a short break - shake out the hand.", "",
                        "   Press any measurement key to continue, Esc to quit.")
                 if kb.next_press()[0] == "quit":
-                    break
+                    return
                 t_break = time.time()
+        controls("end")
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
         print(f"\nSaved {n} trials to {os.path.relpath(TRIALS)}")
+
+
+def cycle_time(trial):
+    """Median duration of one full pass through the pattern, in ms."""
+    k = len(trial["pattern"])
+    warmup = trial.get("warmup_cycles", WARMUP_CYCLES[k])
+    t = {idx: down for _pos, down, _up, idx in trial["presses"] if idx >= 0}
+    errs = {i for i, (_p, _d, _u, idx) in enumerate(trial["presses"]) if idx < 0}
+    cyc = []
+    for c in range(warmup, trial["cycles"]):
+        a, b = c * k, c * k + k
+        if a in t and b in t and b - a == k and t[b] - t[a] < PAUSE_MS * k:
+            cyc.append(t[b] - t[a])
+    return statistics.median(cyc) if cyc else None
 
 
 def cmd_stats(args):
     trials = load_trials()
     ok = [t for t in trials if t["status"] == "ok"]
     print(f"{len(trials)} trials ({len(ok)} ok, {len(trials) - len(ok)} skipped)")
-    plan = set(bigram_plan())
-    covered = {canonical(t["pattern"]) for t in ok if not t["control"]}
-    for tr in (1, 2, 3):
-        p = {x for x in plan if tier(x) == tr}
-        print(f"  tier {tr}: {len(p & covered)}/{len(p)} bigram patterns measured")
-    print("controls by session (median ms):")
+    p2 = [t for t in ok if t.get("protocol", 1) >= PROTOCOL]
+    print(f"  protocol 1 (exploratory): {len(ok) - len(p2)},  protocol {PROTOCOL}: {len(p2)}")
+
+    sessions = sorted({t["session"] for t in p2})
+    print("\nPhase 1, protocol 2: cycle time in ms (rating) per session")
     by = {}
-    for t in ok:
-        if t["control"]:
-            by.setdefault(t["session"], []).extend(ms for *_, ms in transitions(t))
-    for s, v in sorted(by.items()):
-        print(f"  {s}: {statistics.median(v):.0f} ms over {len(v)} transitions")
+    for t in p2:
+        by.setdefault(canonical(t["pattern"]), {}).setdefault(t["session"], []).append(t)
+    plan = phase1_plan()
+    for p in plan:
+        cells = []
+        for s in sessions:
+            ts = [t for t in by.get(p, {}).get(s, []) if not t["control"]]
+            ct = [cycle_time(t) for t in ts]
+            cells.append(" ".join(f"{c:4.0f}({t['rating']})" if c else "   ? " for c, t in zip(ct, ts)) or "    -   ")
+        print(f"  {' '.join(LABEL[x] for x in p):<12} " + "  ".join(f"{c:>9}" for c in cells))
+    print(f"  measured in >=1 session: {sum(1 for p in plan if p in by)}/{len(plan)}")
+
+    print("\nControls: cycle time in ms per session (start → end)")
+    for s in sessions:
+        ctl = [t for t in p2 if t["session"] == s and t["control"]]
+        parts = []
+        for c in CONTROLS:
+            v = [cycle_time(t) for t in ctl if canonical(t["pattern"]) == canonical(c)]
+            parts.append(f"{' '.join(LABEL[x] for x in c)}: " + " → ".join(f"{x:.0f}" for x in v if x))
+        print(f"  {s}   " + "   ".join(parts))
 
 
 def main():
@@ -355,7 +447,9 @@ def main():
     r = sub.add_parser("run")
     r.add_argument("--minutes", type=float, default=20)
     r.add_argument("--patterns", help="file with one pattern per line, e.g. 'r2c2 r2c3 r1c4'")
-    r.add_argument("--repeats", type=int, default=1, help="target measurements per pattern")
+    r.add_argument("--plan", choices=sorted(PLANS), default="phase1")
+    r.add_argument("--repeats", type=int, default=3,
+                   help="target number of sessions in which each pattern is measured")
     sub.add_parser("stats")
     args = ap.parse_args()
     {"run": cmd_run, "stats": cmd_stats}[args.cmd](args)

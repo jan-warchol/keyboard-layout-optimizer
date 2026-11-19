@@ -57,10 +57,18 @@ base layer is a question for measurement, not a guess.
   - Caveat: sequences that are frequent in current layer-4/5 typing may
     come out a bit faster due to practice. Acceptable because that practice
     is only a few weeks old; watch for it when fitting the model.
-- **Trial:** 2-3 highlighted keys typed cyclically (1 2 1 2 … or
-  1 2 3 1 2 3 …), 20 cycles for pairs, 13 for triples, 30 presses for single-key repeats; the first 2 cycles are
-  warm-up. Pace: *comfortable and fluent, not a sprint* — we want the cost of
-  normal typing.
+- **Trial:** 1-4 highlighted keys typed cyclically (1 2 1 2 … or
+  1 2 3 1 2 3 …): 30 presses for single-key repeats, 20 cycles for pairs,
+  13 for triples, 10 for 4-key sequences. Warm-up is at least 8 presses
+  (8 / 5 / 3 / 3 cycles). Instruction: *type it as if it were part of a
+  word*: separate presses, not a back-and-forth oscillation and not a sprint.
+  Self-paced: no metronome, since the natural pace differs per combination.
+- **Main measure is the cycle time** (one pass through the pattern). The
+  inward/outward split within a cycle is kept: it matches the felt
+  difference (inward presses can be timed precisely; outward ones need a
+  bigger gap to avoid a simultaneous press). Whether the cyclic context
+  exaggerates it is checked with triples, where each transition appears
+  in more than one context.
 - **Timing** from kernel input events (`/dev/input`), press-to-press.
   Releases are logged too (hold time, overlap/rollover).
 - **Errors:** a wrong key invalidates the transition into it; error counts
@@ -68,12 +76,45 @@ base layer is a question for measurement, not a guess.
 - **Discomfort rating** after every trial, on the number row:
   1 effortless · 2 fine · 3 some effort · 4 uncomfortable · 5 strain.
   The selected rating is shown and must be confirmed with Space or Enter.
-- **Control trials** (fixed patterns, every 13th trial) track fatigue and
-  learning across sessions.
-- **Coverage:** all 31 positions (number row and outer pinky column
-  included; palm excluded), 465 pairs + 31 same-key repeats. Ordered so the
-  core block (rows 1-3, columns 1-5) is measured first. Spread over several
-  sessions; break reminder every 13 minutes.
+- **Control trials** (`n r` and the inward roll `h l r n`) at the start
+  and end of every session track drift and fatigue.
+- **Repeatability:** every pattern is measured in 3 different sessions
+  (at most once per session), so day-to-day spread can be compared with
+  the differences between patterns.
+- **Rollover is not a sign of a wrong typing mode.** Comfortable pairs
+  overlap in normal typing too (the old keylogs show it). Release times are
+  logged; the *length* of the overlap may still distinguish a deliberate
+  roll from an oscillation, which is to be analysed.
+- Break reminder every 13 minutes.
+
+### Phases: fingers first, positions later
+
+Two-key cycles away from the home row turned out unrepresentative
+(protocol 1, the first 44 trials, kept as exploratory data only):
+
+- With two off-home keys typed alternately, the hand shifts to a position
+  that suits that pair, which it wouldn't do in text where the next key can
+  be anywhere. E.g. the cost of `.`→`r` is the index reaching while the
+  middle finger stays anchored; a 2-key loop lets the hand avoid that.
+- Within a trial the typist can switch from separate presses to a fast
+  oscillation (faster, more errors, not like typing). Unfamiliar pairs sped
+  up by 50-90 ms between the first and second half of a trial.
+
+So measurement proceeds from the simplest movements:
+
+1. **Finger baseline** (`measure.py run --plan phase1`): home-row index,
+   middle, ring, pinky (`n r l h`) and the Space thumb. Same-key repeats (5),
+   finger pairs (10), finger triples in both cyclic orders (20), inward and
+   outward 4-finger rolls (2): 37 patterns × 3 sessions.
+2. **Same finger, different keys** (e.g. `n u`, `n m`, `u m`), anchored by a
+   home-row key on another finger (e.g. `n u r`) so the hand can't shift.
+3. **Off-home positions as differences:** replace one key of a home-row
+   cycle with an off-home key on the same finger (`n r l r` → `. r l r`);
+   the change in time and rating is the cost of that position in context.
+   Sequences of 4+ keys for anything off the home row.
+
+The model then combines finger-pair costs (phase 1) with per-position
+extra costs (phases 2-3).
 
 ### Why not use timings from everyday typing
 
@@ -117,3 +158,8 @@ right-hand-only bigrams on the layer-0 layout) showed:
 - 2026-11-18 — First 36 trials collected (core block). Data collection
   paused: review whether the measurement method is reliable before
   collecting more (some results look odd, to be articulated).
+- 2026-11-19 — Protocol 2: 2-key cycles off the home row are unreliable
+  (hand re-positions, typing mode switches). Start with a finger baseline
+  on the home row + Space thumb, measured in 3 sessions; off-home positions
+  later, in longer sequences and as differences against home-row cycles.
+  Inward/outward asymmetry treated as real. No pacing guide.
