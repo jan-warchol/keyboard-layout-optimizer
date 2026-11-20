@@ -42,10 +42,20 @@ can be lifted if it turns out wrong.
   ring-finger key are hard to reach. The middle-finger key is reasonable;
   the pinky-column key is easy to reach *with the ring finger* (how reliably
   is still open).
-- Resulting base-layer letter slots: 15 (columns 6-0, rows 1-3) + 2 (outer
-  pinky middle) + 2 (number row middle, pinky-column) ≈ 19, or 18 if Space
-  goes into the grid. So the base layer holds roughly 13-20 letters; the
-  rest go to the second letter layer.
+- Resulting base-layer slots: 15 (columns 6-0, rows 1-3) + 2 (outer
+  pinky middle) + 2 (number row middle, pinky-column) = 19, or 18 if Space
+  goes into the grid. Letters share them with frequent symbols, so the base
+  layer holds roughly 13-19 letters; the rest go to the second letter layer.
+
+### Symbols compete with letters
+
+- **Punctuation and symbols are placed together with letters**, not filled
+  in afterwards. Shell and code use `- _ . , ' " | ~ $ = ( ) :` a lot, and
+  several of them are more frequent than half the alphabet, so they compete
+  for the same base-layer slots. The frequency statistics already include
+  all characters.
+- Shifted characters (capitals, shifted symbols) cost a held Shift on the
+  thumb, sometimes together with the layer key; the score accounts for it.
 
 ### Thumb keys and modifiers
 
@@ -190,22 +200,45 @@ So measurement proceeds from the simplest movements:
 3. **Off-home positions as differences:** replace one key of a home-row
    cycle with an off-home key on the same finger (`n r l r` → `. r l r`);
    the change in time and rating is the cost of that position in context.
-   Sequences of 4+ keys for anything off the home row.
+   Sequences of 4+ keys for anything off the home row. Includes the
+   candidate slots outside the main grid: the two outer pinky middle keys
+   and the two number-row keys, the pinky-column one typed with the ring
+   finger (this also answers how reliable that reach is).
+4. **Both keys off home:** transitions where neither key is on the home row
+   (e.g. index on the top row → middle on the bottom row, two fingers
+   stretching outward together). Most frequent bigrams will be like this,
+   and it's where per-position extras are least likely to simply add up,
+   so these trials test the additive model rather than assume it.
+5. **Layer switch:** word-like cycles with one layer-2 key inside
+   (`n [L+r] l`) vs the same cycle on the base layer (`n r l`); the
+   difference is the switch cost in context. With a held and with a
+   one-shot layer key, plus Ctrl + layer + letter for shortcuts. Needed
+   before fitting: every layer-2 letter and all Polish letters are scored
+   with this cost.
 
 The model then combines finger-pair costs (phase 1) with per-position
-extra costs (phases 2-3).
+extra costs (phases 2-3), checked against phase 4, plus the layer-switch
+cost (phase 5).
+
+**Validation before committing:** fitting several features to ~100
+patterns can overfit. Before switching layouts, emulate 2-3 candidate
+layouts on the keyboard, time typing real text on each, and compare with
+what the model predicted (both ranking and size of the differences).
 
 #### Status and plan
 
 | Phase | Patterns | Method tested? | Sessions done |
 |---|---|---|---|
-| 1 finger baseline | 37 | yes: pairs repeat within ~5%, triples/rolls within ~13% but still being learned | 2 (same day) |
-| 2a same finger, unanchored | 18 | yes: 2-key alternation, the most repeatable type | 0 |
+| 1 finger baseline | 37 | yes: pairs repeat within ~5%, triples/rolls within ~13% but still being learned | 3 over 2 days (first one partial: 18 patterns still have 2) |
+| 2a same finger, unanchored | 18 | yes: 2-key alternation, the most repeatable type | 3 over 2 days |
 | 2b same finger, anchored | ~18 | no, pattern design to be decided | 0 |
 | 3 off-home positions | ~26-50 | no, pattern design to be decided | 0 |
+| 4 both keys off home | ? | no, pattern design to be decided | 0 |
+| 5 layer switch | ? | no, pattern design to be decided | 0 |
 
 Each phase: 3 sessions, at least one on a different day. After phases 1-2a:
-check repeatability, then design and pilot 2b/3, then fit the model.
+check repeatability, then design and pilot 2b-5, then fit the model, then
+validate.
 
 ### Why not use timings from everyday typing
 
@@ -235,7 +268,9 @@ right-hand-only bigrams on the layer-0 layout) showed:
   already reflects the real mix.
   - The current logs are on the layer-4/5 layout, in use for ~2 months.
     They are small so far (~8k presses over 3 days, much of it measurement
-    trials). The 2025 logs are bigger but from two-handed typing with
+    trials). Measurement trials must not count as typing: pause keystats
+    during measurement, and as a safeguard drop keylog events inside the
+    session time windows recorded in `trials.jsonl`. The 2025 logs are bigger but from two-handed typing with
     little dictation, so their mix is different.
 - **Corpora fill in the bigram statistics**; the keylogs set proportions.
   Rare bigrams barely affect the base layer (the score is dominated by the
@@ -282,11 +317,6 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   (Check with trigram trials and with typing tests on candidate layouts.)
 - Space on a thumb key vs in the grid; which modifiers get the thumb keys,
   in which order on the arc; where Super and Alt go.
-- **Layer-switch cost needs its own experiment.** Proposal: word-like
-  cycles with one layer-2 key inside (`n [L+r] l`) vs the same cycle on the
-  base layer (`n r l`); the difference is the switch cost in context. Run
-  with a held layer key and a one-shot layer key, and add Ctrl + layer +
-  letter for shortcuts.
 - One-shot vs chorded modifiers (see shortcuts).
 - How reliable is reaching the pinky-column number key with the ring finger?
 - Does x earn a base-layer slot through Ctrl+X (cut)? The shortcut table
@@ -309,8 +339,15 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   Inward/outward asymmetry treated as real. No pacing guide.
 - 2026-11-19 — Layout structure: inner index column for Enter/Backspace/Tab,
   bottom outer pinky key for `/` `\`; Space may go into the grid (thumb keys
-  are needed for modifiers); Polish letters under their Latin letters on the
+  are needed for modifiers; the optimizer compares Space on a thumb key vs
+  in the grid); Polish letters under their Latin letters on the
   second letter layer (a preference, not a rule), z pinned to the base
   layer; palm key = held modal
   layer for navigation and numbers. Weighting from keylogs (by focused app),
   shortcuts counted as a separate table.
+- 2026-11-20 — After a review: symbols are placed together with letters;
+  measurement plan extended with both-keys-off-home trials (phase 4, tests
+  the additive model) and the layer-switch experiment (phase 5, moved from
+  open questions because layer-2 scoring depends on it); validation by
+  typing real text on candidate layouts before committing; measurement
+  sessions excluded from keylogs.
