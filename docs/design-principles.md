@@ -40,7 +40,7 @@ Three layers, each with a different role:
 
 Pins below are fixed by preference to shrink the search; the reason is
 recorded so a pin can be lifted if it turns out wrong. Judgements about
-which keys are comfortable or hard to reach are by feel; phase 3 measures
+which keys are comfortable or hard to reach are by feel; word trials measure
 them.
 
 ### Base layer
@@ -116,9 +116,8 @@ them.
   usual thumb key that is never held together with others, so it is the
   natural candidate to move into the grid. Layouts with Space in the grid
   felt odd in earlier experiments, but are not ruled out; the optimizer
-  compares both. Phase 1 measures the Space thumb, but only together with
-  home-row keys; thumb transitions to off-home keys aren't measured yet,
-  so the comparison isn't fully supported by data.
+  compares both. Phase 1 measured the Space thumb with home-row keys only;
+  word trials include Space with all positions.
 - **Adjacency on the thumb arc matters.** Two adjacent thumb keys can be
   pressed together by the thumb without trouble, so modifier pairs that are
   used together (Ctrl+Shift, Ctrl+layer) must be adjacent. A third key can
@@ -139,147 +138,23 @@ them.
    proxy for comfort that misses some strain (e.g. fast pinky stretches);
    validation checks this assumption. The exact combination
    is still open (see below).
-4. **Positions, not fingers.** The cost is attached to physical positions;
+4. **Positions, not fingers.** Keys are identified by physical position;
    which finger presses a key is whatever is natural, and is captured by the
    measurement implicitly.
-5. **Fit a model, don't just look up the table.** Measured costs are smoothed by a model
-   (finger relationship, row/column distance, direction) so that noisy or
-   unmeasured pairs get sensible estimates.
+5. **Transitions, not positions; fit a model.** What a key costs depends on
+   the keys before and after it. There are too many transitions to measure
+   one by one, so a model with transition features (finger relationship,
+   rows, direction, sideways reach, hand shifts) is fitted to measured
+   sequences and estimates every transition.
 
-## Measurement methodology
+## Measurement
 
-- **Measured on layer 4**, the layer currently used for typing, so key
-  positions are familiar. Since 2026-11-19 it has no dual-use keys (they
-  emit on release, which would distort timing). Palm and r0c1 send nothing
-  there, so they can't be measured.
-  - Caveat: sequences that are frequent in current layer-4/5 typing may
-    come out a bit faster due to practice. That layout has been in use for
-    about 2 months; watch for practice effects when fitting the model.
-- **Trial:** 1-4 highlighted keys typed cyclically (1 2 1 2 … or
-  1 2 3 1 2 3 …): 30 presses for single-key repeats, 20 cycles for pairs,
-  13 for triples, 10 for 4-key sequences. Warm-up is at least 8 presses
-  (8 / 5 / 3 / 3 cycles).
-- **Main measure is the cycle time** (one pass through the pattern). The
-  inward/outward split within a cycle is kept: it matches the felt
-  difference. A possible explanation *(guess)*: inward presses can be timed
-  precisely; outward ones need a bigger gap to avoid a simultaneous press
-  Whether the cyclic context
-  exaggerates it is checked with triples, where each transition appears
-  in more than one context.
-- **Timing** from kernel input events (`/dev/input`), press-to-press.
-  Releases are logged too (hold time, overlap/rollover).
-- **Errors:** a wrong key invalidates the transition into it; error counts
-  are kept as an additional cost signal.
-- **Discomfort rating** after every trial, on the top row `. u i o b`
-  (same keys on both layers):
-  1 effortless · 2 fine · 3 some effort · 4 uncomfortable · 5 strain.
-- **Control trials** (`n r` and the inward roll `h l r n`) at the start
-  and end of every session track drift and fatigue.
-- **Repeatability:** every pattern is measured in 3 different sessions
-  (at most once per session), so day-to-day spread can be compared with
-  the differences between patterns.
-- **Rollover is not a sign of a wrong typing mode.** Comfortable pairs
-  overlap in normal typing too (the old keylogs show it). Release times are
-  logged; the *length* of the overlap may still distinguish a deliberate
-  roll from an oscillation, which is to be analysed.
-- **Stretches and breaks:** 3-minute stretches of measuring (pauses not
-  counted), each followed by a 30 s break with a countdown. After the
-  break: continue, or finish the session with the end controls; at most 5
-  stretches. Each pattern is still measured at most once per session; the
-  plan continues with the least-measured patterns next time.
-- **Measuring only while the terminal is focused.** Switching to another
-  application pauses the trial; key presses elsewhere are ignored.
-
-### Phases: fingers first, positions later
-
-Two-key cycles away from the home row turned out unrepresentative
-(protocol 1, the first 44 trials, kept as exploratory data only):
-
-- With two off-home keys typed alternately, the hand shifts to a position
-  that suits that pair, which it wouldn't do in text where the next key can
-  be anywhere. E.g. the cost of `.`→`r` is the index reaching while the
-  middle finger stays anchored; a 2-key loop lets the hand avoid that.
-- Within a trial the typist can switch from separate presses to a fast
-  oscillation (faster, more errors, not like typing). Unfamiliar pairs sped
-  up by 50-90 ms between the first and second half of a trial.
-
-So measurement proceeds from the simplest movements:
-
-1. **Finger baseline** (`measure.py run --plan phase1`): home-row index,
-   middle, ring, pinky (`n r l h`) and the Space thumb. Same-key repeats (5),
-   finger pairs (10), finger triples in both cyclic orders (20), inward and
-   outward 4-finger rolls (2): 37 patterns × 3 sessions.
-2. **Same finger, different keys.**
-   a. *Unanchored* (`--plan phase2a`): two keys of one finger typed
-      alternately, the hand free to settle into a comfortable position.
-      Vertical (top-home, home-bottom, top-bottom) for index..pinky,
-      horizontal (inner/outer column, each row) for index and pinky:
-      18 patterns. Measures the finger's own movement; not a typing cost
-      by itself.
-   b. *Anchored* by a home-row key on another finger (e.g. `n u r`) so the
-      hand can't shift. The difference from 2a is taken as the stretch
-      penalty of moving one finger while the others stay (an assumption of
-      the design).
-3. **Off-home positions as differences:** replace one key of a home-row
-   cycle with an off-home key on the same finger (`n r l r` → `. r l r`);
-   the change in time and rating is taken as the cost of that position in
-   context (assumes costs add up; phase 4 checks it).
-   Sequences of 4+ keys for anything off the home row. Includes the
-   candidate slots outside the main grid: the two outer pinky middle keys
-   and the two number-row keys, the pinky-column one typed with the ring
-   finger (this also answers how reliable that reach is).
-4. **Both keys off home:** transitions where neither key is on the home row
-   (e.g. index on the top row → middle on the bottom row, two fingers
-   stretching outward together). Many frequent bigrams may be like this,
-   and it may be where per-position extras are least likely to simply add
-   up *(both guesses)*, so these trials test the additive model rather than
-   assume it.
-5. **Layer switch:** word-like cycles with one layer-2 key inside
-   (`n [L+r] l`) vs the same cycle on the base layer (`n r l`); the
-   difference is the switch cost in context. With a held and with a
-   one-shot layer key, plus Ctrl + layer + letter for shortcuts. Needed
-   before fitting: every layer-2 letter and all Polish letters are scored
-   with this cost.
-
-The model then combines finger-pair costs (phase 1) with per-position
-extra costs (phases 2-3), checked against phase 4, plus the layer-switch
-cost (phase 5).
-
-**Validation before committing:** fitting several features to ~100
-patterns can overfit. Before switching layouts, emulate 2-3 candidate
-layouts on the keyboard, time typing real text on each, and compare with
-what the model predicted (both ranking and size of the differences).
-
-#### Status and plan
-
-| Phase | Patterns | Method tested? | Sessions done |
-|---|---|---|---|
-| 1 finger baseline | 37 | yes: pairs repeat within ~5%, triples/rolls within ~13% but still being learned | 3 over 2 days (first one partial: 18 patterns still have 2) |
-| 2a same finger, unanchored | 18 | partly: 2-key alternation was the most repeatable type on the home row, but off-home 2-key cycles were unreliable in protocol 1; check with the 2a data | 3 over 2 days |
-| 2b same finger, anchored | ~18 | no, pattern design to be decided | 0 |
-| 3 off-home positions | ~26-50 | no, pattern design to be decided | 0 |
-| 4 both keys off home | ? | no, pattern design to be decided | 0 |
-| 5 layer switch | ? | no, pattern design to be decided | 0 |
-
-Each phase: 3 sessions, at least one on a different day. After phases 1-2a:
-check repeatability, then design and pilot 2b-5, then fit the model, then
-validate.
-
-### Why not use timings from everyday typing
-
-Analysis of the 2025 two-handed logs (`analysis/legacy_right_hand_timings.*`,
-right-hand-only bigrams on the layer-0 layout) showed:
-
-- Times *into* Backspace are ~400 ms regardless of position: that is
-  error-noticing time, not motor cost. Everyday typing mixes in thinking and
-  reaction time.
-- Within the same movement category times range from 60 to 230 ms; frequent
-  bigrams (`in`, `on`, `ni` ~62 ms) are fast, probably because they're
-  practised; practice effects seem to outweigh the movement itself (an
-  interpretation: easy movements could also be the frequent ones).
-- Still, the rough pattern is useful as a sanity check: different fingers
-  ~125-160 ms, same finger different key ~165-195 ms, inward rolls
-  (towards the index) faster than outward ones.
+Costs come from timed trials on the keyboard plus discomfort ratings; the
+plan, protocol and findings so far are in
+[measurement-plan.md](measurement-plan.md). Summary: costs belong to
+transitions, which depend on the keys before and after, not to key
+positions; they are measured in short cyclic "words" in varied contexts
+rather than relative to the home row, and fitted by a feature model.
 
 ## Corpus and weighting
 
@@ -343,8 +218,9 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
 ## Open questions
 
 - How to combine time, rating and error rate into a single cost.
-- Does cyclic `ABAB` timing represent `A→B` inside real text well enough?
-  (Check with trigram trials and with typing tests on candidate layouts.)
+- Do cyclic words represent transitions inside real text well enough?
+  (2-key cycles of different fingers don't: they're trills. Check words
+  with held-out predictions and typing tests on candidate layouts.)
 - Space on a thumb key vs in the grid; which modifiers get the thumb keys,
   in which order on the arc; where Super and Alt go.
 - One-shot vs chorded modifiers (see shortcuts).
@@ -381,3 +257,8 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   open questions because layer-2 scoring depends on it); validation by
   typing real text on candidate layouts before committing; measurement
   sessions excluded from keylogs.
+- 2026-11-20 — Phases 1-2a analysed (see measurement-plan.md). Off-home
+  costs are measured as transitions in short cyclic words in varied
+  contexts, fitted by a feature model, instead of as per-position extras
+  relative to the home row. Word length and warm-up decided by a pilot.
+  Measurement plan moved into its own document.

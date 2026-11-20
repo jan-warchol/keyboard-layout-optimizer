@@ -14,17 +14,20 @@ Timestamps come from the kernel input device, not the terminal. The device
 sees every key press, so measuring is paused while the terminal is not
 focused (terminal focus reporting).
 
-  python3 measure/measure.py run [--stretches 5] [--plan phase1|bigrams]
+  python3 measure/measure.py run [--stretches 5] [--plan phase1|phase2a|pilot-words|bigrams]
                                  [--patterns FILE] [--repeats N]
       phase1:  home-row fingers + Space thumb (the baseline, see
                docs/design-principles.md); each pattern once per session
       phase2a: same finger, two different keys, hand position free
+      pilot-words: 4-6 key words, 20 cycles each, no warm-up removed:
+               measures how many cycles a new word needs to settle
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
             e.g. "u n r" or "r1c2 r2c2 r2c3"
   python3 measure/measure.py stats
 """
 import argparse
+import collections
 import datetime
 import glob
 import itertools
@@ -58,8 +61,10 @@ RATING_TEXT = "1 effortless · 2 fine · 3 some effort · 4 uncomfortable · 5 s
 # every 13th trial. Protocol 2: longer warm-up, "as part of a word",
 # controls at session start and end, phase-1 baseline plan.
 PROTOCOL = 2
-CYCLES = {1: 30, 2: 20, 3: 13, 4: 10}       # cycles per trial, by pattern length
-WARMUP_CYCLES = {1: 8, 2: 5, 3: 3, 4: 3}    # >= 8 presses before measuring
+CYCLES = {1: 30, 2: 20, 3: 13, 4: 10, 5: 8, 6: 7}      # cycles per trial, by pattern length
+WARMUP_CYCLES = {1: 8, 2: 5, 3: 3, 4: 3, 5: 3, 6: 3}   # >= 8 presses; 5-6: to be set by the pilot
+# Plans that override the above: plan -> (cycles, warm-up cycles)
+PLAN_CYCLES = {"pilot-words": (20, 0)}
 PAUSE_MS = 1500                 # longer gaps don't count as transitions
 STRETCH_S = 3 * 60              # active measuring time between breaks
 BREAK_S = 30
@@ -160,7 +165,33 @@ def phase2a_plan():
     return [canonical(p) for p in pats]
 
 
-PLANS = {"phase1": phase1_plan, "phase2a": phase2a_plan, "bigrams": bigram_plan}
+# Word trials: candidate positions (rows 1-3, columns 1-6, plus Space).
+WORD_KEYS = [f"r{r}c{c}" for r in (1, 2, 3) for c in range(1, 7)] + ["t4"]
+
+
+def random_word(rng, k):
+    """k distinct keys from WORD_KEYS, typed cyclically. At least 3 fingers, and
+    at most one same-finger transition (wrap-around included), as in text."""
+    while True:
+        w = rng.sample(WORD_KEYS, k)
+        same = sum(finger(w[i]) == finger(w[(i + 1) % k]) for i in range(k))
+        if len({finger(x) for x in w}) >= 3 and same <= 1:
+            return tuple(w)
+
+
+def pilot_words_plan():
+    """Warm-up pilot: 6 words each of 4, 5 and 6 keys, lengths interleaved; the
+    first word of each length is repeated at the end (within-session agreement)."""
+    rng = random.Random(1)
+    words = {k: [random_word(rng, k) for _ in range(6)] for k in (4, 5, 6)}
+    plan = [words[k][i] for i in range(6) for k in (4, 5, 6)]
+    return [canonical(p) for p in plan + [words[k][0] for k in (4, 5, 6)]]
+
+
+PLANS = {"phase1": phase1_plan, "phase2a": phase2a_plan, "pilot-words": pilot_words_plan,
+         "bigrams": bigram_plan}
+# Plans run in their own order, with planned repeats inside one session.
+FIXED_ORDER = {"pilot-words"}
 
 
 def load_trials():
@@ -248,6 +279,7 @@ class Keyboard:
 # ---------------------------------------------------------------- drawing
 
 def draw_keyboard(labels):
+    """labels: position -> text shown on the highlighted key."""
     def cell(pos):
         if pos is None:
             return "     "
@@ -268,15 +300,20 @@ def screen(*parts):
 
 # ---------------------------------------------------------------- trial
 
-def run_trial(kb, pattern, header):
+def run_trial(kb, pattern, header, cycles):
     k = len(pattern)
-    total = CYCLES[k] * k
-    labels = {pos: LABEL[pos] for pos in pattern}
+    total = cycles * k
+    # words: number the keys in typing order, to help remember the sequence
+    labels = {pos: (f"{i + 1}:{LABEL[pos]}" if k >= 4 else LABEL[pos])
+              for i, pos in enumerate(pattern)}
     seq = " ".join(LABEL[pattern[i % k]] for i in range(max(2 * k, 3))) + " …"
     presses, nxt, errors = [], 0, 0
 
     def show(msg=""):
-        bar = "█" * nxt + "░" * (total - nxt)
+        if total <= 60:
+            bar = "█" * nxt + "░" * (total - nxt)
+        else:   # long trials: one mark per cycle
+            bar = "█" * (nxt // k) + "░" * (cycles - nxt // k)
         screen(header, "", draw_keyboard(labels), "",
                f"   type cyclically:  {seq}", f"   {bar}  errors: {errors}", "", msg)
 
@@ -367,12 +404,26 @@ def cmd_run(args):
             sys.exit(f"unknown keys in {args.patterns}: {sorted(bad)}")
     else:
         plan = PLANS[args.plan]()
-    # each pattern at most once per session; least-measured first
-    todo = [p for p in plan if done.get(p, 0) < args.repeats]
-    random.shuffle(todo)
-    todo.sort(key=lambda p: (done.get(p, 0), tier(p)))
-    todo = spread_fingers(todo, done)
-    total_plan = len(plan) * args.repeats
+    plan_name = None if args.patterns else args.plan
+    if plan_name in FIXED_ORDER:
+        # planned order; resume after the trials already done (repeats counted)
+        prior = collections.Counter(canonical(t["pattern"]) for t in load_trials()
+                                    if t.get("plan") == plan_name and t["status"] == "ok")
+        seen, todo = collections.Counter(), []
+        for p in plan:
+            seen[p] += 1
+            if seen[p] > prior[p]:
+                todo.append(p)
+        total_plan = len(plan)
+        measured = total_plan - len(todo)
+    else:
+        # each pattern at most once per session; least-measured first
+        todo = [p for p in plan if done.get(p, 0) < args.repeats]
+        random.shuffle(todo)
+        todo.sort(key=lambda p: (done.get(p, 0), tier(p)))
+        todo = spread_fingers(todo, done)
+        total_plan = len(plan) * args.repeats
+        measured = sum(min(v, args.repeats) for p, v in done.items() if p in set(plan))
 
     session = datetime.datetime.now().isoformat(timespec="seconds")
     kb = Keyboard()
@@ -395,7 +446,10 @@ def cmd_run(args):
             m, sec = divmod(int(active_s()), 60)
             header = (f"{label}   ·   stretch {stretch}/{args.stretches} {m}:{sec:02d}"
                       f"   ·   previous: {last_summary or '-'}")
-            status, presses = run_trial(kb, pattern, header)
+            k = len(pattern)
+            cycles, warmup = (PLAN_CYCLES.get(plan_name, (CYCLES[k], WARMUP_CYCLES[k]))
+                              if not control else (CYCLES[k], WARMUP_CYCLES[k]))
+            status, presses = run_trial(kb, pattern, header, cycles)
             if status == "quit":
                 return "quit"
             if status == "paused":
@@ -413,12 +467,12 @@ def cmd_run(args):
                 return "quit"
             if rating == "redo":
                 continue
-            k = len(pattern)
             rec = {"session": session, "time": datetime.datetime.now().isoformat(timespec="seconds"),
-                   "protocol": PROTOCOL, "pattern": pattern, "control": control,
+                   "protocol": PROTOCOL, "plan": None if control else plan_name,
+                   "pattern": pattern, "control": control,
                    "status": "skipped" if rating == "skip" else "ok",
                    "rating": rating if isinstance(rating, int) else None,
-                   "cycles": CYCLES[k], "warmup_cycles": WARMUP_CYCLES[k],
+                   "cycles": cycles, "warmup_cycles": warmup,
                    "presses": presses}
             with open(TRIALS, "a") as f:
                 f.write(json.dumps(rec) + "\n")
@@ -457,7 +511,6 @@ def cmd_run(args):
             return
         if controls("start") == "quit":
             return
-        measured = sum(min(v, args.repeats) for p, v in done.items() if p in set(plan))
         while todo:
             pattern = display_order(todo[0])
             if len(pattern) == 2 and random.random() < 0.5:
