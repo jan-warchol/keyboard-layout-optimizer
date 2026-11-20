@@ -19,8 +19,12 @@ focused (terminal focus reporting).
       phase1:  home-row fingers + Space thumb (the baseline, see
                docs/design-principles.md); each pattern once per session
       phase2a: same finger, two different keys, hand position free
-      pilot-words: 4-6 key words, 20 cycles each, no warm-up removed:
-               measures how many cycles a new word needs to settle
+      pilot-chain: 4-key words, each starting with the last two keys of
+               the previous one; 15 cycles, no warm-up removed: measures
+               how many cycles a new word needs to settle
+      pilot-words: (first pilot, 4-6 key random words: too hard to learn)
+      pilot-real: 8 Polish words typed on layer 4 (4 as they are, 4 with one
+               letter swapped to its layer-4 key), each followed by Space
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
             e.g. "u n r" or "r1c2 r2c2 r2c3"
@@ -64,7 +68,7 @@ PROTOCOL = 2
 CYCLES = {1: 30, 2: 20, 3: 13, 4: 10, 5: 8, 6: 7}      # cycles per trial, by pattern length
 WARMUP_CYCLES = {1: 8, 2: 5, 3: 3, 4: 3, 5: 3, 6: 3}   # >= 8 presses; 5-6: to be set by the pilot
 # Plans that override the above: plan -> (cycles, warm-up cycles)
-PLAN_CYCLES = {"pilot-words": (20, 0)}
+PLAN_CYCLES = {"pilot-words": (20, 0), "pilot-chain": (15, 0), "pilot-real": (15, 0)}
 PAUSE_MS = 1500                 # longer gaps don't count as transitions
 STRETCH_S = 3 * 60              # active measuring time between breaks
 BREAK_S = 30
@@ -165,18 +169,68 @@ def phase2a_plan():
     return [canonical(p) for p in pats]
 
 
-# Word trials: candidate positions (rows 1-3, columns 1-6, plus Space).
-WORD_KEYS = [f"r{r}c{c}" for r in (1, 2, 3) for c in range(1, 7)] + ["t4"]
+# Word trials: candidate positions (rows 1-3, columns 1-6). The first pilot
+# also had Space; word trials leave it out (thumb cost from phase 1).
+WORD_KEYS = [f"r{r}c{c}" for r in (1, 2, 3) for c in range(1, 7)]
 
 
-def random_word(rng, k):
-    """k distinct keys from WORD_KEYS, typed cyclically. At least 3 fingers, and
-    at most one same-finger transition (wrap-around included), as in text."""
+def word_ok(w):
+    """Distinct keys, at least 3 fingers, at most one same-finger transition
+    (wrap-around included), as in text."""
+    k = len(w)
+    same = sum(finger(w[i]) == finger(w[(i + 1) % k]) for i in range(k))
+    return len(set(w)) == k and len({finger(x) for x in w}) >= 3 and same <= 1
+
+
+def random_word(rng, k, keys=WORD_KEYS + ["t4"]):
     while True:
-        w = rng.sample(WORD_KEYS, k)
-        same = sum(finger(w[i]) == finger(w[(i + 1) % k]) for i in range(k))
-        if len({finger(x) for x in w}) >= 3 and same <= 1:
-            return tuple(w)
+        w = tuple(rng.sample(keys, k))
+        if word_ok(w):
+            return w
+
+
+def chain_words(rng, n, k=4, step=2):
+    """n words of k keys, each starting with the last k-step keys of the
+    previous one (a moving window over one random key sequence)."""
+    words = [random_word(rng, k, WORD_KEYS)]
+    while len(words) < n:
+        head = words[-1][step:]
+        while True:
+            w = head + tuple(rng.sample(WORD_KEYS, step))
+            if word_ok(w):
+                words.append(w)
+                break
+    return words
+
+
+def pilot_chain_plan():
+    """Second warm-up pilot: 14 chained 4-key words, then the first two again.
+    Not rotated: each word is shown starting where the previous one ended."""
+    words = chain_words(random.Random(2), 14)
+    return words + words[:2]
+
+
+# Real words: letters typed with the palm key (layer 5) or with AltGr map to
+# the layer-4 key at the same position, e.g. "mogę" is typed "mogr".
+LETTER_POS = {label: pos for pos, label in LABEL.items()
+              if len(label) == 1 and label.isalpha() and pos[1] in "123"}
+SWAPS = dict(zip("fdwqtesacvxz", "uiobnrlhmkjg"))
+SWAPS.update(zip("ąęłóśćńżź", "hrlolmngj"))
+WORD_TEXT = {}   # pattern -> the real word it was made from
+
+
+def word_pattern(word):
+    """Positions for typing `word` on layer 4, followed by Space."""
+    p = tuple(LETTER_POS[SWAPS.get(ch, ch)] for ch in word) + ("t4",)
+    WORD_TEXT[p] = word
+    return p
+
+
+def pilot_real_plan():
+    """Third pilot: real Polish words, 4 typed as they are, 4 with one letter
+    swapped (the layer-4 key under it), alternating."""
+    words = ["humor", "nigdy", "mogli", "tylko", "okno", "mogę", "robimy", "przy"]
+    return [word_pattern(w) for w in words]
 
 
 def pilot_words_plan():
@@ -189,9 +243,11 @@ def pilot_words_plan():
 
 
 PLANS = {"phase1": phase1_plan, "phase2a": phase2a_plan, "pilot-words": pilot_words_plan,
-         "bigrams": bigram_plan}
+         "pilot-chain": pilot_chain_plan, "pilot-real": pilot_real_plan, "bigrams": bigram_plan}
 # Plans run in their own order, with planned repeats inside one session.
-FIXED_ORDER = {"pilot-words"}
+FIXED_ORDER = {"pilot-words", "pilot-chain", "pilot-real"}
+# Plans whose words are shown as planned, not rotated by display_order.
+AS_PLANNED = {"pilot-chain", "pilot-real"}
 
 
 def load_trials():
@@ -300,22 +356,47 @@ def screen(*parts):
 
 # ---------------------------------------------------------------- trial
 
+def sequence_view(pattern, cycles, nxt, width=72):
+    """The whole run as text, one group per cycle: typed keys dim green, the
+    next key highlighted, the rest plain."""
+    k = len(pattern)
+    # real words: letters written together, Space as a visible gap
+    word = tuple(pattern) in WORD_TEXT
+    groups, lines = [], []
+    for c in range(cycles):
+        cells = []
+        for i in range(c * k, c * k + k):
+            label = LABEL[pattern[i % k]]
+            text = ("_" if label == "Spc" else label) if word else f"{label:<3}"
+            if i < nxt:
+                cells.append(f"\x1b[2;32m{text}\x1b[0m")
+            elif i == nxt:
+                cells.append(f"\x1b[1;97;44m{text}\x1b[0m")
+            else:
+                cells.append(text)
+        groups.append(("" if word else " ").join(cells))
+    per_line = max(1, (width + 2) // ((k + 1) if word else (4 * k + 1)))
+    for c in range(0, cycles, per_line):
+        lines.append("   " + "  ".join(groups[c:c + per_line]))
+    return "\n".join(lines)
+
+
 def run_trial(kb, pattern, header, cycles):
     k = len(pattern)
     total = cycles * k
     # words: number the keys in typing order, to help remember the sequence
-    labels = {pos: (f"{i + 1}:{LABEL[pos]}" if k >= 4 else LABEL[pos])
+    word = WORD_TEXT.get(tuple(pattern))
+    labels = {pos: (f"{i + 1}:{LABEL[pos]}" if k >= 4 and not word else LABEL[pos])
               for i, pos in enumerate(pattern)}
-    seq = " ".join(LABEL[pattern[i % k]] for i in range(max(2 * k, 3))) + " …"
     presses, nxt, errors = [], 0, 0
 
     def show(msg=""):
-        if total <= 60:
-            bar = "█" * nxt + "░" * (total - nxt)
-        else:   # long trials: one mark per cycle
-            bar = "█" * (nxt // k) + "░" * (cycles - nxt // k)
-        screen(header, "", draw_keyboard(labels), "",
-               f"   type cyclically:  {seq}", f"   {bar}  errors: {errors}", "", msg)
+        intro = ([f"   word: {word}" + (f"  (typed {''.join(LABEL[p] for p in pattern[:-1])})"
+                                         if any(ch in SWAPS for ch in word) else ""),
+                  "   first cycles slowly until it flows, then normal speed", ""]
+                 if word else [])
+        screen(header, "", draw_keyboard(labels), "", *intro,
+               sequence_view(pattern, cycles, nxt), "", f"   errors: {errors}", msg)
 
     show("   start whenever ready   (Del = pause)")
     open_presses = {}
@@ -411,8 +492,8 @@ def cmd_run(args):
                                     if t.get("plan") == plan_name and t["status"] == "ok")
         seen, todo = collections.Counter(), []
         for p in plan:
-            seen[p] += 1
-            if seen[p] > prior[p]:
+            seen[canonical(p)] += 1
+            if seen[canonical(p)] > prior[canonical(p)]:
                 todo.append(p)
         total_plan = len(plan)
         measured = total_plan - len(todo)
@@ -447,8 +528,10 @@ def cmd_run(args):
             header = (f"{label}   ·   stretch {stretch}/{args.stretches} {m}:{sec:02d}"
                       f"   ·   previous: {last_summary or '-'}")
             k = len(pattern)
-            cycles, warmup = (PLAN_CYCLES.get(plan_name, (CYCLES[k], WARMUP_CYCLES[k]))
-                              if not control else (CYCLES[k], WARMUP_CYCLES[k]))
+            if plan_name in PLAN_CYCLES and not control:
+                cycles, warmup = PLAN_CYCLES[plan_name]
+            else:
+                cycles, warmup = CYCLES[k], WARMUP_CYCLES[k]
             status, presses = run_trial(kb, pattern, header, cycles)
             if status == "quit":
                 return "quit"
@@ -469,7 +552,7 @@ def cmd_run(args):
                 continue
             rec = {"session": session, "time": datetime.datetime.now().isoformat(timespec="seconds"),
                    "protocol": PROTOCOL, "plan": None if control else plan_name,
-                   "pattern": pattern, "control": control,
+                   "pattern": pattern, "word": WORD_TEXT.get(tuple(pattern)), "control": control,
                    "status": "skipped" if rating == "skip" else "ok",
                    "rating": rating if isinstance(rating, int) else None,
                    "cycles": cycles, "warmup_cycles": warmup,
@@ -512,7 +595,7 @@ def cmd_run(args):
         if controls("start") == "quit":
             return
         while todo:
-            pattern = display_order(todo[0])
+            pattern = list(todo[0]) if plan_name in AS_PLANNED else display_order(todo[0])
             if len(pattern) == 2 and random.random() < 0.5:
                 pattern.reverse()   # balance which key comes first
             status = measure(pattern, False, f"trial {measured + 1}/{total_plan}")

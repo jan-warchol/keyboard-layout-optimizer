@@ -2,7 +2,8 @@
 """Analyse the key-sequence measurements in data/measurements/trials.jsonl.
 
   python3 analysis/measurements.py report   # phases 1 and 2a (protocol 2)
-  python3 analysis/measurements.py warmup   # word pilot: how fast cycle time settles
+  python3 analysis/measurements.py warmup [PLAN]   # word pilot (default pilot-chain):
+                                                   # how fast cycle time settles
 
 Everything is recomputed from the raw trials; nothing is stored. Findings
 are summarised in docs/measurement-plan.md.
@@ -164,10 +165,10 @@ def per_cycle(t):
             for c in range(t["cycles"] - 1)]
 
 
-def warmup():
-    ts = [t for t in trials() if t.get("plan") == "pilot-words"]
+def warmup(plan="pilot-chain"):
+    ts = trials(plan=plan)
     if not ts:
-        sys.exit("no pilot-words trials yet")
+        sys.exit(f"no {plan} trials yet")
     print("WORD PILOT: cycle time relative to the trial's last-half median, by cycle")
     print("(1.00 = settled; the warm-up should cover the cycles clearly above 1)")
     by_len = collections.defaultdict(list)
@@ -191,7 +192,7 @@ def warmup():
         ref = st.median(late)
         first = " ".join(f"{c / ref:.2f}" if c else "  - " for c in cyc[:3])
         err = sum(1 for p in t["presses"] if p[3] < 0)
-        print(f"  {t['time'][11:16]} {name(t['pattern']):14} {ref:5.0f} ms  [{first}]"
+        print(f"  {t['time'][11:16]} {t.get('word') or name(t['pattern']):14} {ref:5.0f} ms  [{first}]"
               f"  rating {t['rating']}  errors {err}")
     rep = collections.defaultdict(list)
     for t in ts:
@@ -207,4 +208,5 @@ def warmup():
 
 
 if __name__ == "__main__":
-    {"report": report, "warmup": warmup}[sys.argv[1] if len(sys.argv) > 1 else "report"]()
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "report"
+    {"report": report, "warmup": warmup}[cmd](*sys.argv[2:])
