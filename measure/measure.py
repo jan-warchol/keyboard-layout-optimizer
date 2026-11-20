@@ -14,7 +14,7 @@ Timestamps come from the kernel input device, not the terminal. The device
 sees every key press, so measuring is paused while the terminal is not
 focused (terminal focus reporting).
 
-  python3 measure/measure.py run [--minutes 9] [--plan phase1|bigrams]
+  python3 measure/measure.py run [--stretches 5] [--plan phase1|bigrams]
                                  [--patterns FILE] [--repeats N]
       phase1:  home-row fingers + Space thumb (the baseline, see
                docs/design-principles.md); each pattern once per session
@@ -61,7 +61,8 @@ PROTOCOL = 2
 CYCLES = {1: 30, 2: 20, 3: 13, 4: 10}       # cycles per trial, by pattern length
 WARMUP_CYCLES = {1: 8, 2: 5, 3: 3, 4: 3}    # >= 8 presses before measuring
 PAUSE_MS = 1500                 # longer gaps don't count as transitions
-BREAK_EVERY_S = 3 * 60
+STRETCH_S = 3 * 60              # active measuring time between breaks
+BREAK_S = 30
 CORE = {f"r{r}c{c}" for r in (1, 2, 3) for c in range(1, 6)}
 
 # Phase 1 baseline: home row index..pinky plus the Space thumb.
@@ -380,15 +381,20 @@ def cmd_run(args):
     tty.setraw(fd)
     sys.stdout.write("\x1b[?1004h")   # ask the terminal to report focus changes
     sys.stdout.flush()
-    t_start = t_break = time.time()
     n, last_summary = 0, ""
+    stretch, t_stretch, paused_s = 1, time.time(), 0.0
+
+    def active_s():
+        """Measuring time in the current stretch, pauses excluded."""
+        return time.time() - t_stretch - paused_s
 
     def measure(pattern, control, label):
         """Run one trial until saved or abandoned: returns 'ok', 'skipped' or 'quit'."""
-        nonlocal n, last_summary
+        nonlocal n, last_summary, paused_s
         while True:
-            elapsed = int((time.time() - t_start) / 60)
-            header = (f"{label}   ·   {elapsed} min   ·   previous: {last_summary or '-'}")
+            m, sec = divmod(int(active_s()), 60)
+            header = (f"{label}   ·   stretch {stretch}/{args.stretches} {m}:{sec:02d}"
+                      f"   ·   previous: {last_summary or '-'}")
             status, presses = run_trial(kb, pattern, header)
             if status == "quit":
                 return "quit"
@@ -396,7 +402,10 @@ def cmd_run(args):
                 screen("Paused (trial discarded).", "",
                        "   Key presses in other windows are ignored.",
                        "   Press any measurement key here to continue, Esc to quit.")
-                if kb.next_press()[0] == "quit":
+                t_pause = time.time()
+                key = kb.next_press()[0]
+                paused_s += time.time() - t_pause
+                if key == "quit":
                     return "quit"
                 continue
             rating = ask_rating(kb, header)
@@ -422,6 +431,21 @@ def cmd_run(args):
             if measure(display_order(c), True, f"control {i + 1}/{len(CONTROLS)} ({when})") == "quit":
                 return "quit"
 
+    def take_break():
+        """Countdown, then ask: 'continue', 'finish' (with end controls) or 'quit'."""
+        end = time.time() + BREAK_S
+        while time.time() < end:
+            screen(f"Stretch {stretch}/{args.stretches} done. Break - shake out the hand.", "",
+                   f"   {int(end - time.time()) + 1:3d} s")
+            for pos, _down, _t in kb.events(min(1.0, max(0.0, end - time.time()))):
+                if pos == "quit":
+                    return "quit"
+        screen(f"Break over. Stretch {stretch}/{args.stretches} done.", "",
+               "   Any measurement key: next stretch.",
+               "   Del: finish the session (end controls).   Esc: quit without them.")
+        key = kb.next_press()[0]
+        return {"quit": "quit", SKIP_KEY: "finish"}.get(key, "continue")
+
     try:
         screen("Measurement session", "",
                "   Use layer 4 or the measurement layer (palm + outer home key).",
@@ -434,7 +458,7 @@ def cmd_run(args):
         if controls("start") == "quit":
             return
         measured = sum(min(v, args.repeats) for p, v in done.items() if p in set(plan))
-        while todo and time.time() - t_start < args.minutes * 60:
+        while todo:
             pattern = display_order(todo[0])
             if len(pattern) == 2 and random.random() < 0.5:
                 pattern.reverse()   # balance which key comes first
@@ -449,13 +473,15 @@ def cmd_run(args):
             todo.pop(0)
             if status == "ok":
                 measured += 1
-            time_up = time.time() - t_start >= args.minutes * 60
-            if time.time() - t_break > BREAK_EVERY_S and not time_up:
-                screen("Time for a short break - shake out the hand.", "",
-                       "   Press any measurement key to continue, Esc to quit.")
-                if kb.next_press()[0] == "quit":
+            if active_s() >= STRETCH_S and todo:
+                if stretch >= args.stretches:
+                    break
+                choice = take_break()
+                if choice == "quit":
                     return
-                t_break = time.time()
+                if choice == "finish":
+                    break
+                stretch, t_stretch, paused_s = stretch + 1, time.time(), 0.0
         controls("end")
     finally:
         sys.stdout.write("\x1b[?1004l")
@@ -513,7 +539,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run")
-    r.add_argument("--minutes", type=float, default=9)
+    r.add_argument("--stretches", type=int, default=5,
+                   help=f"at most this many {STRETCH_S // 60}-minute stretches, "
+                        f"with {BREAK_S} s breaks in between")
     r.add_argument("--patterns", help="file with one pattern per line, e.g. 'r2c2 r2c3 r1c4'")
     r.add_argument("--plan", choices=sorted(PLANS), default="phase1")
     r.add_argument("--repeats", type=int, default=3,

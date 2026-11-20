@@ -182,9 +182,11 @@ them.
   overlap in normal typing too (the old keylogs show it). Release times are
   logged; the *length* of the overlap may still distinguish a deliberate
   roll from an oscillation, which is to be analysed.
-- **Short sessions:** a break reminder every 3 minutes, a session ends
-  after 9 minutes (3 × 3). Each pattern is still measured at most once per
-  session; the plan continues with the least-measured patterns next time.
+- **Stretches and breaks:** 3-minute stretches of measuring (pauses not
+  counted), each followed by a 30 s break with a countdown. After the
+  break: continue, or finish the session with the end controls; at most 5
+  stretches. Each pattern is still measured at most once per session; the
+  plan continues with the least-measured patterns next time.
 - **Measuring only while the terminal is focused.** Switching to another
   application pauses the trial; key presses elsewhere are ignored.
 
