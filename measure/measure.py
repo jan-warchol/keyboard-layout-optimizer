@@ -10,9 +10,11 @@ Afterwards rate the discomfort on the top row keys . u i o b = 1-5
 Works on the measurement layer (see make_measurement_layer.py) or on layer 4
 (the typing layer, plain keys since 2026-11-19): both send the same keys
 except the number row and t1, which are recognised in both versions.
-Timestamps come from the kernel input device, not the terminal.
+Timestamps come from the kernel input device, not the terminal. The device
+sees every key press, so measuring is paused while the terminal is not
+focused (terminal focus reporting).
 
-  python3 measure/measure.py run [--minutes 20] [--plan phase1|bigrams]
+  python3 measure/measure.py run [--minutes 9] [--plan phase1|bigrams]
                                  [--patterns FILE] [--repeats N]
       phase1:  home-row fingers + Space thumb (the baseline, see
                docs/design-principles.md); each pattern once per session
@@ -59,7 +61,7 @@ PROTOCOL = 2
 CYCLES = {1: 30, 2: 20, 3: 13, 4: 10}       # cycles per trial, by pattern length
 WARMUP_CYCLES = {1: 8, 2: 5, 3: 3, 4: 3}    # >= 8 presses before measuring
 PAUSE_MS = 1500                 # longer gaps don't count as transitions
-BREAK_EVERY_S = 13 * 60
+BREAK_EVERY_S = 3 * 60
 CORE = {f"r{r}c{c}" for r in (1, 2, 3) for c in range(1, 6)}
 
 # Phase 1 baseline: home row index..pinky plus the Space thumb.
@@ -193,9 +195,11 @@ class Keyboard:
             sys.exit("No Keyboardio input device found under /dev/input/by-id")
         self.fds = [os.open(p, os.O_RDONLY | os.O_NONBLOCK) for p in paths]
         self.last = {}
+        self.focused = True     # assumed at start; updated by focus reports
 
     def events(self, timeout):
-        """Yield (pos, is_press, t_ms) for measurement-layer keys; ('quit',..) on Esc/Ctrl-C."""
+        """Yield (pos, is_press, t_ms) for measurement-layer keys; ('quit',..) on Esc/Ctrl-C,
+        ('blur',..) when the terminal loses focus. Keys are ignored while unfocused."""
         r, _, _ = select.select(self.fds + [sys.stdin.fileno()], [], [], timeout)
         for fd in r:
             if fd == sys.stdin.fileno():
@@ -203,6 +207,18 @@ class Keyboard:
                 # bare Esc or Ctrl-C quits; Del etc. arrive as \x1b[... sequences
                 if b"\x03" in data or data == b"\x1b":
                     yield ("quit", True, 0.0)
+                # focus reports: ESC[I = focus in, ESC[O = focus out (last one wins)
+                i, o = data.rfind(b"\x1b[I"), data.rfind(b"\x1b[O")
+                if i != o:
+                    self.focused = i > o
+                    if not self.focused:
+                        yield ("blur", True, 0.0)
+                continue
+            if not self.focused:
+                try:
+                    os.read(fd, EVENT.size * 64)   # drain, ignore
+                except BlockingIOError:
+                    pass
                 continue
             try:
                 buf = os.read(fd, EVENT.size * 64)
@@ -222,7 +238,7 @@ class Keyboard:
     def next_press(self, timeout=None):
         while True:
             for pos, down, t in self.events(timeout):
-                if down:
+                if down and pos != "blur":
                     return pos, t
             if timeout is not None:
                 return None, None
@@ -273,7 +289,7 @@ def run_trial(kb, pattern, header):
                 if pos in open_presses:
                     presses[open_presses.pop(pos)][2] = t
                 continue
-            if pos in PAUSE_KEYS:
+            if pos in PAUSE_KEYS or pos == "blur":
                 return "paused", presses
             ok = pos == pattern[nxt % k]
             presses.append([pos, t, None, nxt if ok else -1])
@@ -362,6 +378,8 @@ def cmd_run(args):
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     tty.setraw(fd)
+    sys.stdout.write("\x1b[?1004h")   # ask the terminal to report focus changes
+    sys.stdout.flush()
     t_start = t_break = time.time()
     n, last_summary = 0, ""
 
@@ -375,7 +393,9 @@ def cmd_run(args):
             if status == "quit":
                 return "quit"
             if status == "paused":
-                screen("Paused.", "", "   Press any measurement key to continue, Esc to quit.")
+                screen("Paused (trial discarded).", "",
+                       "   Key presses in other windows are ignored.",
+                       "   Press any measurement key here to continue, Esc to quit.")
                 if kb.next_press()[0] == "quit":
                     return "quit"
                 continue
@@ -429,7 +449,8 @@ def cmd_run(args):
             todo.pop(0)
             if status == "ok":
                 measured += 1
-            if time.time() - t_break > BREAK_EVERY_S:
+            time_up = time.time() - t_start >= args.minutes * 60
+            if time.time() - t_break > BREAK_EVERY_S and not time_up:
                 screen("Time for a short break - shake out the hand.", "",
                        "   Press any measurement key to continue, Esc to quit.")
                 if kb.next_press()[0] == "quit":
@@ -437,6 +458,7 @@ def cmd_run(args):
                 t_break = time.time()
         controls("end")
     finally:
+        sys.stdout.write("\x1b[?1004l")
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
         print(f"\nSaved {n} trials to {os.path.relpath(TRIALS)}")
 
@@ -491,7 +513,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run")
-    r.add_argument("--minutes", type=float, default=20)
+    r.add_argument("--minutes", type=float, default=9)
     r.add_argument("--patterns", help="file with one pattern per line, e.g. 'r2c2 r2c3 r1c4'")
     r.add_argument("--plan", choices=sorted(PLANS), default="phase1")
     r.add_argument("--repeats", type=int, default=3,
