@@ -7,7 +7,8 @@ timed measurements on the real keyboard. Comfort first, speed second.
 - `docs/design-principles.md`: goals, layout structure, scoring model,
   corpus weighting, decision log. Record decisions there with their reason.
 - `docs/measurement-plan.md`: phase plan and status, findings so far,
-  trial protocol. Read before changing the measurement method.
+  trial protocol. Starts with the current state and open questions
+  (handoff): read it first when continuing.
 
 ## Layout of the repo
 - `measure/model100.py`: key geometry. Positions `r{row}c{col}` (row 0 =
@@ -22,8 +23,9 @@ timed measurements on the real keyboard. Comfort first, speed second.
 - `data/measurements/trials.jsonl`: raw trials, append-only, one JSON per
   trial; `presses` = [pos, t_down, t_up, index], index -1 = wrong key.
   Protocol-1 trials are exploratory only.
-- `analysis/measurements.py`: `report` (phases 1-2a), `warmup` (word
-  pilot). Analysis scripts and derived tables live in `analysis/`.
+- `analysis/measurements.py`: `report` (phases 1-2a), `warmup PLAN` (word
+  pilots); `analysis/word_pool.py`: Polish words typeable on layer 4.
+  Analysis scripts and derived tables live in `analysis/`.
 - `keystats` → keylogger output, `dariogoetz_optimizer` → upstream
   optimizer: both external symlinks, read-only, never write analysis there.
 

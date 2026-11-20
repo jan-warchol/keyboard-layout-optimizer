@@ -5,6 +5,44 @@ the data has shown so far. The *why* of the layout and the scoring model is
 in [design-principles.md](design-principles.md). Claims marked *(guess)* have
 no measurement behind them yet.
 
+## Current state (handoff, 2026-11-20 evening)
+
+Phases 1 and 2a are done and analysed (findings below). The off-home
+method is still being searched for; three word pilots were run on
+2026-11-20, the user tired by the third:
+
+1. Random 4-6 key sequences: failed (memorising, not motor cost).
+2. Chained random 4-key sequences: failed the same way; also too much
+   pinky, too few adjacent-finger row changes, no text-like letters.
+3. Real Polish words on layer 4 (`pilot-real`): 6 of 8 words done
+   (`robimy`, `przy` not reached: crash on 7-key words, fixed since; end
+   controls missing). Start controls were normal (`n r` 180 ms), but the
+   words were slow: settled cycles 1180-1530 ms, i.e. 200-300 ms per key
+   including Space (phase-1 triples: ~150), 5-22 errors per trial, and the
+   time was still dropping after 10 cycles. The user's impression:
+   "slightly better than random, not sure", possibly fatigue. One-swap
+   words were not clearly worse than unchanged ones (too few to tell).
+
+**Open questions for the next session** (discuss with the user before
+building phase 4):
+
+- Is pilot 3 representative when repeated fresh (morning, not after two
+  other pilots)? Finishing it: `measure.py run --plan pilot-real` resumes
+  with `robimy`, `przy`. Also compare with how fast these words are typed
+  in everyday use (keylogs, layer 4/5) to see what speed is realistic.
+- Why are real words still slow and error-prone? Candidates: the layer-4
+  letters alone are rarely typed as whole words (most words need the palm
+  key), so even unchanged words aren't practised as motor sequences;
+  Space in every cycle; 15 cycles too long or too short.
+- If words stay slow: more warm-up (the user suggested 10-20 practice
+  cycles before measuring), or shorter units (3-4 key fragments of
+  frequent words), or a different approach altogether.
+- Pending decisions: keep the Wiktionary list in the repo or download it
+  on demand (`analysis/word_pool.py` has the command)?
+
+Tools: `analysis/measurements.py warmup PLAN` (settling per cycle),
+`analysis/word_pool.py WIKTIONARY_FILE` (word pool).
+
 ## Plan
 
 Costs are attached to **transitions**, not positions: what a key costs
@@ -20,7 +58,7 @@ few features and is fitted to many varied sequences.
 |---|---|---|
 | 1 finger baseline | home-row fingers + Space thumb: repeats, pairs, triples, rolls (37 patterns) | done, 3 sessions |
 | 2a same finger, unanchored | two keys of one finger alternately (18 patterns) | done, 3 sessions |
-| 3 word pilot | warm-up and cycle count for 4-6 key words | **next** |
+| 3 word pilot | which words, warm-up and cycle count | random and chained random words failed; real words inconclusive (see handoff) |
 | 4 word trials | transitions in varied contexts, fitted by a feature model | to do |
 | 5 layer switch | cost of a layer-2 key inside a word | to do, design open |
 | validation | type real text on 2-3 emulated candidate layouts, compare with prediction | to do |
@@ -31,34 +69,94 @@ off home): those all measured relative to the home row.
 
 ### Phase 3: word pilot
 
-`python3 measure/measure.py run --plan pilot-words`, then
-`python3 analysis/measurements.py warmup`.
+**First pilot** (`--plan pilot-words`, 2026-11-20, 6 of 21 words done):
+random words of 4, 5 and 6 keys, 20 cycles each. It failed:
 
-- 18 words, 6 each of 4, 5 and 6 keys, lengths interleaved, then the first
-  word of each length again. Keys from rows 1-3, columns 1-6, plus Space;
-  distinct keys, at least 3 fingers, at most one same-finger transition.
-  Fixed seed, so the words are reproducible.
-- 20 cycles per word (2-3× the usual), nothing discarded as warm-up, so the
-  analysis can see when the cycle time settles. Keys are numbered on screen
-  in typing order.
-- Answers: how many warm-up cycles each length needs, how many measured
-  cycles give a stable median, whether 6-key words are too hard to remember
-  (errors, slow settling), and how well the same word agrees later in the
-  session. Agreement across sessions is checked by repeated anchor words in
-  phase 4.
+- The words were unlike anything usually typed and hard to remember. A
+  settled 4-key word took ~220 ms per key (phase-1 triples: ~150); 5-6 key
+  words took 300-400 ms per key with 5-31 errors, and were still speeding
+  up in the last cycles (`/ o - l u`: 5100 → 1440 ms). That measures
+  memorising, not finger movement.
+- 20 cycles of the same awkward movement tired the fingers before the
+  time settled.
+- After a wrong key it was hard to find the place in the sequence again.
+
+So: **at most 5 keys for random words, 4 more likely to settle quickly.**
+
+**Second pilot** (`--plan pilot-chain`, then
+`python3 analysis/measurements.py warmup`):
+
+- 14 words of 4 keys, **chained**: each word starts with the last two keys
+  of the previous one (a moving window over one random key sequence), so
+  half of every new word is already practised. Then the first two words
+  again (agreement within the session). Words are shown starting where the
+  previous one ended.
+- Keys from rows 1-3, columns 1-6; no Space (see phase 4).
+- 15 cycles, nothing discarded, to see where the time settles.
+- **The whole run is shown as text** (one group per cycle): typed keys
+  turn dim green, the next key is highlighted. Acts as a progress bar and
+  shows where to continue after a wrong key (applies to all trials).
+
+Result (2026-11-20, 16 trials): **random sequences are the wrong kind of
+trial**, chained or not.
+
+- Settled cycles took 200-370 ms per key (phase-1 triples: ~150), with
+  1-17 errors per trial; on average the time settled only after ~9 of 15
+  cycles. Most words never felt fluent: the time measures learning an
+  unfamiliar sequence, while the model needs the cost of practised
+  movements (what the new layout becomes after adaptation).
+- Uniform sampling over keys overrepresented the pinky: it owns 6 of the 18
+  keys and got 41% of the presses (ring: 5%), often two pinky keys in one
+  word, which a good layout avoids. Adjacent fingers in different rows were
+  rare.
+- The sequences had nothing in common with text (hardly any vowels).
+
+**Third pilot: real words** (`--plan pilot-real`). Words typed on
+layer 4, each followed by Space, cyclically (`humor humor …`).
+
+- Letters on the palm layer, and Polish letters, are replaced by the
+  layer-4 key at the same position: `f d w q / t e s a / c v x z` →
+  `u i o b / n r l h / m k j g`, `ę` → `r` etc. Typing `mogr` for `mogę`
+  uses the muscle memory of the word minus the palm key.
+- 8 words alternating between none and one swapped letter: `humor`,
+  `nigdy`→`nigiy`, `mogli`, `tylko`→`nylko`, `okno`, `mogę`→`mogr`,
+  `robimy`, `przy`→`prgy`. 15 cycles each, nothing discarded; the first
+  cycles slowly until the word flows, then normal speed.
+- Answers: do real words settle quickly, and do one-swap words behave
+  like unchanged ones (if so, the pool is ~4× larger).
+
+Result: see the handoff section at the top.
+
+**Word pool** (`analysis/word_pool.py`) for phase 4: Polish words of 3-7 letters, ranked by the
+user's task database (`keystats/processed-janek-3.txt`) and the
+[Wiktionary frequency list](https://en.wiktionary.org/wiki/Wiktionary:Frequency_lists/Polish_wordlist)
+(5000 words, from subtitles). No immediate same-key repeats. 153 words
+need no swap, 576 one swap; together they contain 167 of the 182
+letter-to-letter transitions, and the pinky gets 16% of the presses.
+Transitions the words don't cover (column 6, `.`, rare pairs) get a few
+designed sequences, practised longer (10-20 cycles of warm-up).
 
 ### Phase 4: word trials
 
-- **Words** of 5-6 keys (final length after the pilot), typed cyclically.
-  Each word gives one cycle time (the sum of its transitions, wrap-around
-  included) and one rating.
-- **Related words.** A rating mostly reflects the word's worst transition,
-  so words come in families sharing most keys: a base word and variants
-  that change one key. Comparing family members localises both time and
+- Each word, typed cyclically with Space, gives one cycle time (the sum
+  of its transitions) and one rating.
+- **Words** from the pool above, chosen greedily: every transition in at
+  least two different words, extra weight on the strain transitions, few
+  pinky-heavy words. A rating mostly reflects the word's worst transition;
+  transitions shared between words let the fit localise both time and
   discomfort.
-- **Sampling** covers all kinds of transitions, with extra words for the
-  suspected strain sources below. A few anchor words repeat every session
-  (session speed, repeatability).
+- **Practice effect.** Sequences frequent in current typing are faster.
+  Partly real (frequent sequences on the new layout get practised too);
+  the fit can include each transition's keylog frequency as a covariate.
+- **Space only as the word separator.** The thumb is probably hardly
+  influenced by what the fingers do (user's experience), so its cost comes
+  from the phase-1 triples; in words it is a nuisance term of the fit.
+  In those triples, the two cyclic orders with Space differ by 4-120 ms,
+  and in all 6 the faster one is the order whose finger-to-finger
+  transition goes inward. That fits the hypothesis "Space adds a cost that
+  depends little on the fingers"; the asymmetry is the fingers' own. *(To check: a few
+  triples with Space next to keys that need a hand shift.)*
+- **Anchor words** repeat every session (session speed, repeatability).
 - **Model:** cycle time = session factor × Σ transition costs; the cost of
   a transition is a function of its features. Ratings are fitted separately
   (probably driven by the worst transition). Cycle times can't separate a
