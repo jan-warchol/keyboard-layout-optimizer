@@ -300,3 +300,21 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   cost after `focus-5`), a **one-shot layer key** (measured by `focus-7`;
   the user finds it promising), or Space in the grid (removes the thumb
   conflict but not the release timing, and costs a prime finger slot).
+- 2026-11-21 (night), layout review:
+  - **Symbol pairs:** sharing a key with its Shift partner is intuitive
+    and cheap *on the base layer* (`/?`, `-_`). On layer 2, layer + Shift
+    for the partner may be too much, depending on the symbol: to consider
+    in future layouts (now every pair fills a whole key on either layer).
+    Unrelated symbols on one key (`*` with `@`) surprised the user.
+  - **Number row:** index keys (c1, c2) cost more than a layer switch;
+    the outer key (c6) is a little less bad but breaks the flow, no
+    letters there; ring and pinky keys (c4, c5) "not horrible".
+  - **Polish letters via a one-shot key in the grid** (tap it, then the
+    Latin letter): frees the 9 layer-2 cells and puts every Polish letter
+    exactly on its Latin letter, for one extra finger tap per Polish
+    letter (1.7% of characters). The user wants to try it.
+  - Keymap reorganized for trying layouts (`Keyboardio-Model-100_layout_
+    2026-11-21_reorganized.json`): 0 base, 1 rAlt, 2 fun, 3-5 free,
+    6-7 the current two-layer layout (former 4-5); the measurement layer,
+    the number pad and the all-letters experiment are gone. measure.py
+    identifies keys by key code, so it works on layer 6 as it did on 4.
