@@ -8,8 +8,10 @@ with the baseline layout:
           decides the layout and is worth measuring.
   moved:  share of typed characters whose slot differs from the baseline.
 The baseline's own restarts give the noise level of both numbers.
+Each variant runs `restarts` cold starts and as many warm starts from the
+baseline layout (t0 = 1), so regret >= 0 and its noise is ~0.05 ms/char.
 
-  python3 optimizer/sweep.py [--restarts 3] [--steps 200000] [--only name ...]
+  uv run optimizer/sweep.py [--restarts 4] [--steps 1000000] [--only name ...]
       -> analysis/sensitivity.tsv
 """
 import argparse
@@ -17,6 +19,7 @@ import multiprocessing as mp
 import os
 import random
 import sys
+import time
 
 import numpy as np
 
@@ -48,10 +51,9 @@ def variants(only):
 
 
 def job(args):
-    P, seed, steps = args
+    P, seed, steps, t0, start = args
     prob = Problem(P)
-    slot_of, s = prob.anneal(random.Random(seed), steps)
-    return slot_of, s
+    return prob.anneal(random.Random(seed), steps, t0=t0, start=start)
 
 
 def moved(prob, a, b):
@@ -64,24 +66,28 @@ def moved(prob, a, b):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--restarts", type=int, default=3)
-    ap.add_argument("--baseline-restarts", type=int, default=8)
-    ap.add_argument("--steps", type=int, default=200000)
+    ap.add_argument("--restarts", type=int, default=4)
+    ap.add_argument("--baseline-restarts", type=int, default=16)
+    ap.add_argument("--steps", type=int, default=1000000)
     ap.add_argument("--only", nargs="*")
     a = ap.parse_args()
+    t_start = time.time()
 
-    runs = [(dict(PARAMS), 100 + i, a.steps) for i in range(a.baseline_restarts)]
+    Problem(dict(PARAMS)).anneal(random.Random(0), 10)     # compile once (cached)
     vs = list(variants(a.only))
-    for k, v in vs:
-        P = dict(PARAMS)
-        P[k] = v
-        runs += [(P, 200 + i, a.steps) for i in range(a.restarts)]
     with mp.Pool() as pool:
+        base = pool.map(job, [(dict(PARAMS), 100 + i, 2 * a.steps, 3.0, None)
+                              for i in range(a.baseline_restarts)], chunksize=1)
+        L0, s0 = min(base, key=lambda x: x[1])
+        runs = []
+        for k, v in vs:
+            P = dict(PARAMS)
+            P[k] = v
+            runs += [(P, 200 + i, a.steps, 3.0, None) for i in range(a.restarts)]
+            runs += [(P, 300 + i, a.steps, 1.0, L0) for i in range(a.restarts)]
         res = pool.map(job, runs, chunksize=1)
 
     base_prob = Problem(dict(PARAMS))
-    base = res[:a.baseline_restarts]
-    L0, s0 = min(base, key=lambda x: x[1])
     noise_regret = [s - s0 for _, s in base]
     noise_moved = [moved(base_prob, L0, L) for L, _ in base]
     print(f"baseline {s0:.2f} ms/char; restarts: regret median {np.median(noise_regret):.2f} "
@@ -89,10 +95,10 @@ def main():
     print(base_prob.show(L0))
 
     rows = []
-    i = a.baseline_restarts
+    i = 0
     for k, v in vs:
-        group = res[i:i + a.restarts]
-        i += a.restarts
+        group = res[i:i + 2 * a.restarts]
+        i += 2 * a.restarts
         P = dict(PARAMS)
         P[k] = v
         prob = Problem(P)
@@ -112,6 +118,7 @@ def main():
     for k, lst in sorted(by.items(), key=lambda kv: -max(x[1] for x in kv[1])):
         cells = "   ".join(f"{v:6g}: {r:5.2f} {m:5.1%}" for v, r, m in lst)
         print(f"{k:18s} {PARAMS[k]:6g}   {cells}")
+    print(f"{len(runs) + len(base)} runs in {time.time() - t_start:.0f} s")
 
 
 if __name__ == "__main__":

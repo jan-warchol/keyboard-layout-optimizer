@@ -8,19 +8,27 @@ the measurements in [measurement-plan.md](measurement-plan.md). Claims marked
 ## Pipeline
 
 ```sh
+uv sync                               # numpy + numba (pyproject.toml)
 python3 analysis/corpus.py            # -> analysis/corpus/{1,2,3}grams.tsv
 python3 analysis/corpus_report.py OUT.json   # per-source statistics (review page)
-python3 optimizer/anneal.py [--restarts 4] [--steps 300000] [--set name=value ...]
-python3 optimizer/sweep.py [--only param ...] [--restarts 6] [--steps 400000]
+uv run optimizer/anneal.py [--restarts 4] [--steps 200000] [--set name=value ...]
+uv run optimizer/sweep.py [--only param ...] [--restarts 4] [--steps 1000000]
                                       # -> analysis/sensitivity.tsv
 ```
 
 Our own optimizer instead of the dariogoetz one: its metrics are built for
 two-handed layouts and it needs a Rust toolchain; ours scores with the
-transition-cost model directly. Python is too slow for sweeps (~15k
-annealing steps/s per core, a sweep of 200+ runs takes ~30 min on 8
-cores): port the annealing loop to numba with incremental scoring (decided
-2026-11-21: one language; Rust would be similarly fast).
+transition-cost model directly. The annealing loop is compiled with numba
+(decided 2026-11-21: one language; Rust would be similarly fast); setup
+and full scoring stay in Python, and every run asserts that the
+incremental score equals a full rescoring. Speed: ~1.5M steps/s per core,
+~100× the pure-Python loop; the full sweep (900 runs of 1-2M steps) takes
+5 min on 8 cores, a sweep of 3 parameters 30 s.
+
+Search quality: restarts of 2-20M steps still end 0.1-0.25 ms/char apart,
+whatever the temperature schedule (t0 1-10, t1 0.0005-0.005 all alike;
+t1 0.05 is worse). The landscape is full of near-ties, so the sweep
+takes the best of several runs and adds warm starts (see below).
 
 ## Corpus (`analysis/corpus.py`)
 
@@ -98,6 +106,10 @@ the **regret**: how much worse the baseline layout scores than the new
 optimum under the changed value (ms per typed character, of ~160). Small
 regret = a wrong guess barely costs anything, so measuring the parameter
 wouldn't change the layout. The baseline's own restarts give the noise.
+Since the numba port, each value runs 4 cold restarts plus 4 warm starts
+from the baseline layout at a lower temperature (t0 = 1): the result can't
+be worse than the baseline, so regret ≥ 0, and best-of-8 is stable to
+~0.05 ms/char (checked on index-up scissor ×4: 1.37-1.40).
 
 - **Near-ties:** restarts find layouts that differ in 30-90% of typed
   characters but score within ~0.3-0.9 ms/char. "Which letters moved"
@@ -140,3 +152,23 @@ wouldn't change the layout. The baseline's own restarts give the noise.
   frequent letters, so their bigrams are common. Pinky-up scissors are
   avoided by any good layout, whatever their exact cost; middle-ring
   matters only if very costly.
+- **Numba sweep** (2026-11-21, same model and corpus as the scissor sweep,
+  4 cold + 4 warm starts × 1M steps per value, baseline 16 × 2M;
+  `analysis/sensitivity-2026-11-21-numba.txt`). Confirms the scissor sweep
+  and shows the smaller effects more clearly:
+
+  | Parameter | Regret ms/char |
+  |---|---|
+  | index up + middle down scissor ×4 / ×6 | 1.3 / 3.3 |
+  | index same-finger ±25% | 1.8 / 1.6 |
+  | middle up + index down ×4 / ×6 | 0.5 / 1.1 |
+  | layer switch ×0.5 / ×2 | 0.9 / 0.7 |
+  | pinky up + ring down ×4 / ×6 | 0.4 / 0.85 |
+  | different-finger base ±25% | 0.7 / 0.75 |
+  | index stretch top row (`e_col1_top`) ×2 | 0.5 |
+  | ring up + middle down ×6 | 0.4 |
+  | pinky top row, finger step after Space ×2 | 0.4 |
+  | everything else | ≤ 0.3, mostly 0 |
+
+  Base layer unchanged from the scissor sweep: `g o d l c f` / `i a t s n
+  w` / `p e z m r /`.

@@ -34,8 +34,13 @@ sweep. Details and results: [docs/optimizer.md](docs/optimizer.md).
   outward penalty, per-key efforts. Regret is out of ~160 ms/char; the
   noise of the last sweep ≤ 0.16. Not testable this way: effects the model
   lacks (hand shifts, redirects, trigram rolls).
+- **Optimizer speed:** the annealing loop is compiled with numba
+  (`uv sync` once; `uv run optimizer/anneal.py`, `uv run optimizer/sweep.py`).
+  Full sweep in 5 min, a 3-parameter sweep in 30 s; warm starts make
+  regret ≥ 0 with noise ~0.05. Latest sweep:
+  `analysis/sensitivity-2026-11-21-numba.txt` (same ranking as above).
 - **Layout:** the optimizer's current best is printed by
-  `python3 optimizer/anneal.py` and at the top of the sweep files.
+  `uv run optimizer/anneal.py` and at the top of the sweep files.
   Not yet reviewed with the user. Base layer, rows 1-3:
   `g o d l c f` / `i a t s n w` / `p e z m r /`, symbols on the number
   row, `u h k y b` etc. on layer 2. Many layouts score within 0.2 ms/char
@@ -43,12 +48,7 @@ sweep. Details and results: [docs/optimizer.md](docs/optimizer.md).
 
 ## Next steps
 
-1. **Port the annealing loop to numba** with incremental scoring (user's
-   choice over Rust: one language). Python does ~15k steps/s per core; a
-   sweep of 200+ runs took ~30 min on 8 cores. Needs a uv project here
-   (as in keystats). Keep `model.py` in Python; pass the slot cost matrix
-   and bigram matrix to a compiled loop. Check against the current scores.
-2. **Measure the few parameters that matter**, in one or two short
+1. **Measure the few parameters that matter**, in one or two short
    sessions:
    - index-middle scissors, both directions: the 18 index-middle patterns
      of the `scissors` plan (`measure.py run --plan scissors` runs all 54;
@@ -59,7 +59,7 @@ sweep. Details and results: [docs/optimizer.md](docs/optimizer.md).
    - layer switch (phase 5 in measurement-plan.md): design open.
    Write the analysis for these trials (none yet in
    `analysis/measurements.py`).
-3. **Review the layout with the user**, pin what feels wrong, then type
+2. **Review the layout with the user**, pin what feels wrong, then type
    on it and fit costs from the keylogs (option 4: everyday typing as
    measurement, keylogs of practised movements, median per bigram).
 

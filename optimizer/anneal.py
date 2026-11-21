@@ -4,16 +4,16 @@
 Score = Σ bigram frequency × transition cost between their slots (+ the
 Polish-letter preference), in ms per typed character.
 
-  python3 optimizer/anneal.py [--restarts 4] [--steps 200000] [--set name=value ...]
+  uv run optimizer/anneal.py [--restarts 4] [--steps 200000] [--set name=value ...]
 """
 import argparse
 import json
-import math
 import os
 import random
 import sys
 
 import numpy as np
+from numba import njit
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from model import FIXED, GRID, PARAMS, PINNED_POS, PSEUDO, Slots  # noqa: E402
@@ -113,65 +113,44 @@ class Problem:
                 s += self.P["polish_off"] * (self.uni[p] + self.uni[P_])
         return s
 
-    def part(self, U, slot_of):
-        """Bigram cost of all bigrams touching units U."""
-        C, F = self.S.C, self.F
-        su = slot_of[U]
-        rows = (F[U, :] * C[su][:, slot_of]).sum()
-        cols = (F[:, U] * C[slot_of][:, su]).sum()
-        both = (F[np.ix_(U, U)] * C[np.ix_(su, su)]).sum()
-        return rows + cols - both
+    def arrays(self):
+        """Flat arrays for the compiled loop."""
+        if getattr(self, "_arrays", None) is None:
+            S = self.S
+            n_slots = len(S.slots)
+            pos_ids = {}
+            slot_pos = np.array([pos_ids.setdefault(p, len(pos_ids)) for p, _, _ in S.slots])
+            slot_layer = np.array([l for _, l, _ in S.slots])
+            cell_slots = np.array([S.cell(*c) for c in self.cells])
+            pl = np.array(self.pl, dtype=np.int64)
+            pl_w = np.array([self.P["polish_off"] * (self.uni[p] + self.uni[P_])
+                             for p, P_, _ in self.pl])
+            # sparse bigrams per unit: neighbours v with F[u,v] or F[v,u] > 0
+            F = self.F
+            nb_ptr, nb_v, nb_out, nb_in = [0], [], [], []
+            for u in range(len(F)):
+                vs = np.nonzero((F[u] + F[:, u]) > 0)[0]
+                nb_v += list(vs)
+                nb_out += list(F[u, vs])
+                nb_in += list(F[vs, u])
+                nb_ptr.append(len(nb_v))
+            self._arrays = (np.ascontiguousarray(F), np.ascontiguousarray(S.C),
+                            np.array(nb_ptr), np.array(nb_v, dtype=np.int64),
+                            np.array(nb_out), np.array(nb_in),
+                            cell_slots, np.array(self.sym_halves), 2 * len(LETTERS),
+                            np.array([self.uidx[z] for z in BASE_ONLY]),
+                            slot_pos, slot_layer, pl, pl_w, n_slots)
+        return self._arrays
 
-    def delta(self, old, new, U):
-        return (self.part(U, new) - self.part(U, old)
-                + self.polish(new) - self.polish(old))
-
-    def neighbour(self, slot_of, rng):
-        """Swap two letter cells (whole cells, both layers allowed) or two symbol halves."""
-        new = slot_of.copy()
-        slot_unit = {s: u for u, s in enumerate(slot_of)}
-        if rng.random() < 0.6:
-            c1, c2 = rng.sample(self.cells, 2)
-            for s in (0, 1):
-                a, b = self.S.index[(c1[0], c1[1], s)], self.S.index[(c2[0], c2[1], s)]
-                ua, ub = slot_unit.get(a), slot_unit.get(b)
-                if ua is not None:
-                    new[ua] = b
-                if ub is not None:
-                    new[ub] = a
-            for z in BASE_ONLY:
-                if self.S.slots[new[self.uidx[z]]][1] != 0:
-                    return None
-            return new, np.nonzero(new != slot_of)[0]
-        a, b = rng.sample(self.sym_halves, 2)
-        ua, ub = slot_unit.get(a), slot_unit.get(b)
-        letters = set(range(2 * len(LETTERS)))
-        # a symbol half can't be swapped with half of a letter cell
-        if ua in letters or ub in letters or (ua is None and ub is None):
-            return None
-        if ua is not None:
-            new[ua] = b
-        if ub is not None:
-            new[ub] = a
-        return new, np.array([u for u in (ua, ub) if u is not None])
-
-    def anneal(self, rng, steps, t0=3.0, t1=0.005):
-        cur = self.random_state(rng)
-        cs = self.score(cur)
-        best, bs = cur, cs
-        for i in range(steps):
-            t = t0 * (t1 / t0) ** (i / steps)
-            mv = self.neighbour(cur, rng)
-            if mv is None or len(mv[1]) == 0:
-                continue
-            nb = mv[0]
-            # full rescoring: at this size it is faster than self.delta()
-            d = self.score(nb) - cs
-            if d <= 0 or rng.random() < math.exp(-d / t):
-                cur, cs = nb, cs + d
-                if cs < bs - 1e-9:
-                    best, bs = cur, cs
-        return best, self.score(best)
+    def anneal(self, rng, steps, t0=3.0, t1=0.005, start=None):
+        """Simulated annealing from a random state (or from `start`); rng
+        seeds both the start state and the compiled loop."""
+        cur = self.random_state(rng) if start is None else start.copy()
+        best, bs = _anneal(cur.astype(np.int64), steps, t0, t1, rng.getrandbits(31),
+                           *self.arrays())
+        s = self.score(best)
+        assert abs(s - bs) < 1e-6 * max(1.0, abs(s)), (s, bs)   # incremental == full
+        return best, s
 
     def layout(self, slot_of):
         """(pos, layer, shift) -> character"""
@@ -197,6 +176,116 @@ class Problem:
                 lines.append("  " + "".join(bot))
             lines.append("")
         return "\n".join(lines)
+
+
+@njit(cache=True)
+def _polish(slot_of, slot_pos, slot_layer, pl, pl_w):
+    s = 0.0
+    for k in range(pl.shape[0]):
+        a, b = slot_of[pl[k, 0]], slot_of[pl[k, 2]]
+        if not (slot_pos[a] == slot_pos[b] and slot_layer[a] == 1):
+            s += pl_w[k]
+    return s
+
+
+@njit(cache=True)
+def _part(U, nu, slot_of, F, C, nb_ptr, nb_v, nb_out, nb_in):
+    """Bigram cost of all bigrams touching the units U[:nu]."""
+    s = 0.0
+    for k in range(nu):
+        u = U[k]
+        su = slot_of[u]
+        for j in range(nb_ptr[u], nb_ptr[u + 1]):
+            sv = slot_of[nb_v[j]]
+            s += nb_out[j] * C[su, sv] + nb_in[j] * C[sv, su]
+    for k in range(nu):
+        for m in range(nu):
+            s -= F[U[k], U[m]] * C[slot_of[U[k]], slot_of[U[m]]]
+    return s
+
+
+@njit(cache=True)
+def _anneal(slot_of, steps, t0, t1, seed, F, C, nb_ptr, nb_v, nb_out, nb_in, cell_slots, sym_halves, n_letter_units,
+            base_only, slot_pos, slot_layer, pl, pl_w, n_slots):
+    """Compiled annealing loop with incremental scoring. Moves as before:
+    60 % swap two letter cells (both halves), else swap two symbol halves
+    (neither may hold a letter, not both empty)."""
+    np.random.seed(seed)
+    n = slot_of.shape[0]
+    unit_at = np.full(n_slots, -1, np.int64)
+    for u in range(n):
+        unit_at[slot_of[u]] = u
+    cur = 0.0
+    for u in range(n):
+        for v in range(n):
+            cur += F[u, v] * C[slot_of[u], slot_of[v]]
+    cur += _polish(slot_of, slot_pos, slot_layer, pl, pl_w)
+    best = slot_of.copy()
+    bs = cur
+    U = np.empty(4, np.int64)
+    A = np.empty(4, np.int64)      # slots swapped pairwise: A[2k] <-> A[2k+1]
+    n_cells = cell_slots.shape[0]
+    n_sym = sym_halves.shape[0]
+    ratio = t1 / t0
+    for i in range(steps):
+        t = t0 * ratio ** (i / steps)
+        if np.random.random() < 0.6:
+            c1 = np.random.randint(n_cells)
+            c2 = np.random.randint(n_cells - 1)
+            if c2 >= c1:
+                c2 += 1
+            A[0], A[1] = cell_slots[c1, 0], cell_slots[c2, 0]
+            A[2], A[3] = cell_slots[c1, 1], cell_slots[c2, 1]
+            npairs = 2
+        else:
+            h1 = np.random.randint(n_sym)
+            h2 = np.random.randint(n_sym - 1)
+            if h2 >= h1:
+                h2 += 1
+            a, b = sym_halves[h1], sym_halves[h2]
+            ua, ub = unit_at[a], unit_at[b]
+            if (ua == -1 and ub == -1) or (0 <= ua < n_letter_units) or (0 <= ub < n_letter_units):
+                continue
+            A[0], A[1] = a, b
+            npairs = 1
+        nu = 0
+        for k in range(2 * npairs):
+            if unit_at[A[k]] != -1:
+                U[nu] = unit_at[A[k]]
+                nu += 1
+        if nu == 0:
+            continue
+        old = _part(U, nu, slot_of, F, C, nb_ptr, nb_v, nb_out, nb_in) + _polish(slot_of, slot_pos, slot_layer, pl, pl_w)
+        for k in range(npairs):
+            a, b = A[2 * k], A[2 * k + 1]
+            ua, ub = unit_at[a], unit_at[b]
+            if ua != -1:
+                slot_of[ua] = b
+            if ub != -1:
+                slot_of[ub] = a
+            unit_at[a], unit_at[b] = ub, ua
+        ok = True
+        for z in base_only:
+            if slot_layer[slot_of[z]] != 0:
+                ok = False
+        d = 0.0
+        if ok:
+            d = _part(U, nu, slot_of, F, C, nb_ptr, nb_v, nb_out, nb_in) + _polish(slot_of, slot_pos, slot_layer, pl, pl_w) - old
+        if ok and (d <= 0 or np.random.random() < np.exp(-d / t)):
+            cur += d
+            if cur < bs - 1e-9:
+                bs = cur
+                best[:] = slot_of
+        else:                       # undo
+            for k in range(npairs):
+                a, b = A[2 * k], A[2 * k + 1]
+                ua, ub = unit_at[a], unit_at[b]
+                if ua != -1:
+                    slot_of[ua] = b
+                if ub != -1:
+                    slot_of[ub] = a
+                unit_at[a], unit_at[b] = ub, ua
+    return best, bs
 
 
 def run(P, restarts, steps, seed=0):
