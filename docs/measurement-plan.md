@@ -5,7 +5,14 @@ the data has shown so far. The *why* of the layout and the scoring model is
 in [design-principles.md](design-principles.md). Claims marked *(guess)* have
 no measurement behind them yet.
 
-## Current state (handoff, 2026-11-20 evening)
+## Current state
+
+The current handoff is in `what-next.md` (2026-11-21): the optimizer and a
+sensitivity sweep now decide what to measure. Added since: the `scissors`
+plan in `measure.py` (adjacent fingers in all row combinations followed by
+Space, both orders, 54 patterns), not run yet.
+
+### Word pilots (handoff, 2026-11-20 evening)
 
 Phases 1 and 2a are done and analysed (findings below). The off-home
 method is still being searched for; three word pilots were run on

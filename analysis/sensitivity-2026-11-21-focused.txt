@@ -1,0 +1,36 @@
+baseline 159.70 ms/char; restarts: regret median 0.27 max 0.90, moved median 36.3% max 98.5%
+base layer (shifted above)
+       $   |   >   }      
+   ś   ,   "   ?   ;   ć  
+                          
+   p   i   g   n   w   v  
+                          
+   o   e   t   s   r   m  
+                       )  
+   d   a   z   l   c   /  
+
+layer 2 (shifted above)
+   +   `               [  
+   *   {   ó   ń   ź   ]  
+   =   '   (              
+   :   -   _   f   q   x  
+   @                      
+   .   u   h   k   b   ż  
+                       ~  
+   ę   y   ą   ł   j   \  
+
+param                base   low: regret moved   high: regret moved
+sf_index              165   123.75:  1.75 74.3%   206.25:  1.84 66.5%
+layer                  60       30:  0.55 61.4%      120:  0.98 65.4%
+df_base               110     82.5:  0.79 69.9%    137.5:  0.52 84.0%
+space_finger_step      20       10:  0.03  3.8%       40:  0.62 94.8%
+scissor                20       10: -0.01 54.8%       40:  0.19 16.4%
+e_col1_top             25     12.5: -0.10 25.8%       50:  0.18 21.8%
+e_col6_home            25     12.5: -0.01  5.3%       50:  0.13 15.4%
+e_pinky_top            25     12.5:  0.04 23.3%       50:  0.08 23.4%
+lateral                40       20:  0.02  8.1%       80: -0.06 32.1%
+outward                40       30:  0.01 18.3%       50: -0.00  1.2%
+ring_pinky             40       30:  0.00  1.1%       50:  0.00  1.5%
+scissor_bad           1.5        1: -0.01  3.9%        2: -0.03  1.5%
+sf_middle             165   123.75: -0.05 48.5%   206.25: -0.02  6.2%
+row_change             10        5: -0.05 23.2%       20: -0.04 44.2%

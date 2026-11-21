@@ -151,7 +151,8 @@ them.
 
 Costs come from timed trials on the keyboard plus discomfort ratings; the
 plan, protocol and findings so far are in
-[measurement-plan.md](measurement-plan.md). Summary: costs belong to
+[measurement-plan.md](measurement-plan.md). The corpus, the cost model and
+which parameters matter are in [optimizer.md](optimizer.md). Summary: costs belong to
 transitions, which depend on the keys before and after, not to key
 positions; they are measured in short cyclic "words" in varied contexts
 rather than relative to the home row, and fitted by a feature model.
@@ -262,3 +263,12 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   contexts, fitted by a feature model, instead of as per-position extras
   relative to the home row. Word length and warm-up decided by a pilot.
   Measurement plan moved into its own document.
+- 2026-11-21 — Before measuring more, find which cost parameters change
+  the layout (sensitivity sweep, see [optimizer.md](optimizer.md)). Own
+  annealing optimizer in Python (numba for speed), not the dariogoetz one.
+  Corpus corrected for current one-handed use: git as `g`, no commits
+  (agents commit), git and Vim downweighted, dictated and pasted notes out
+  (details in optimizer.md). Scissor cost per finger pair and direction,
+  full scissor more than twice a one-row one (user's experience). First
+  sweeps: index same-finger cost, layer switch and different-finger base
+  matter most, but each by only ~1% of the score; scissors in the noise.

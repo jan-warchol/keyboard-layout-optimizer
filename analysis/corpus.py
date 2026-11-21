@@ -21,6 +21,7 @@ lines. Tab completion '⇥' is Tab; a paste '⎘' breaks the n-gram.
   python3 analysis/corpus.py          -> analysis/corpus/{1,2,3}grams.tsv
 """
 import collections
+import datetime
 import json
 import os
 import re
@@ -49,7 +50,7 @@ BREAK = "⎘"
 # source; the source's share of the total stays as in SOURCE_WEIGHT.
 GIT = re.compile(r"(^|[;&|(]\s*)git(?=\s|$)")
 COMMIT = re.compile(r"(^|[;&|(]\s*)g\s+(ci|commit|amq|amci)\b")   # amq, amci: amend
-GIT_LINE = re.compile(r"(^|[;&|(⋯]\s*)g(\s|$)")
+GIT_LINE = re.compile(r"(^|[;&|(⋯]\s*)g(-?\s|-?$)")   # g-: checkout previous branch
 EDITOR_EXIT = re.compile(r"^\s*ZZ(?=\S)")
 VIM_LINE = re.compile(r"^\s*(:|ZZ\s*$|dd\b|n?vim?(\s|$))")
 # Vim normal-mode keys logged as "code" lines in the 2025 keylog
@@ -60,6 +61,10 @@ NOT_TYPED = re.compile(r"__fzf_\w+__")
 # (recurring tasks re-created by the app) count at most NOTES_MAX_REPEAT times
 PASTED = "\xa0"
 NOTES_MAX_REPEAT = 3
+# Long notes are mostly typed until mid-2026, then increasingly dictated
+# (user; note length by month jumps from 2026-07).
+DICTATION_SINCE = datetime.datetime(2026, 7, 1)
+DICTATED_LEN = 300
 GIT_WEIGHT = 0.3
 VIM_WEIGHT = 0.3
 # `q` closing the git pager, then the next git command (`qg d`): two separate
@@ -78,9 +83,32 @@ def text_lines(path, commands=False):
                 yield w, line
 
 
-def notes_lines(path):
+def notes_texts(dump, exclude):
+    """Typed text of the notes app, from its all_docs dump, with the same
+    exclusions as keystats' extract_docs_text.sh; long notes created since
+    DICTATION_SINCE are dropped as probably dictated."""
+    with open(exclude, encoding="utf-8") as f:
+        skip = {l.split("#")[0].strip() for l in f} - {""}
+    with open(dump, encoding="utf-8") as f:
+        rows = json.load(f)["rows"]
+    for r in rows:
+        doc = r["doc"]
+        i, text = doc["_id"], doc.get("text")
+        if not text or i.startswith("config.") or i in skip:
+            continue
+        if i.startswith("i."):
+            created = datetime.datetime.fromtimestamp(int(i.split(".")[1], 36) / 1000)
+            if created >= DICTATION_SINCE and len(text) > DICTATED_LEN:
+                continue
+        for line in text.split("\n"):
+            line = re.sub(r"https?://\S*", "", re.sub(r"^\s*- ", "", line))
+            if line.strip():
+                yield 1.0, line
+
+
+def notes_lines(dump, exclude):
     seen = collections.Counter()
-    for w, line in text_lines(path):
+    for w, line in notes_texts(dump, exclude):
         if PASTED in line:
             continue
         seen[line.strip()] += 1
@@ -151,7 +179,8 @@ def sources():
     return {
         "prose-2025": text_lines(os.path.join(DATA, "processed/2025/by-kind/prose.txt")),
         "prose-2026": keylog_lines(os.path.join(DATA, "processed/2026/clean.jsonl"), "prose"),
-        "notes": notes_lines(os.path.join(DATA, "todo-notes-data/processed-janek3.txt")),
+        "notes": notes_lines(os.path.join(DATA, "todo-notes-data/janek3_all_docs.json"),
+                             os.path.join(DATA, "todo-notes-data/janek3_docs_exclude.txt")),
         "shell-prose": shell_lines(os.path.join(DATA, "shell-history/processed-history-prose")),
         "shell": shell_lines(os.path.join(DATA, "shell-history/processed-history-commands"),
                              commands=True),

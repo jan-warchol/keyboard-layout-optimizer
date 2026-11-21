@@ -51,6 +51,9 @@ PARAMS = {
     "sc_index_up": 30, "sc_middle_up_i": 5,      # index-middle pair
     "sc_middle_up_r": 30, "sc_ring_up_m": 40,    # middle-ring pair
     "sc_ring_up_p": 30, "sc_pinky_up": 60,       # ring-pinky pair
+    # a full scissor (top + bottom row) costs this many one-row scissors;
+    # user: clearly more than 2 *(guess)*
+    "sc_full_factor": 3,
     "lateral": 40,             # col 1 with middle, col 6 with ring/middle *(guess)*
     "numrow_low": 25,          # number row ↔ bottom row, half of it ↔ home *(guess)*
     # entering a key: effort by position *(guess, by feel)*
@@ -117,7 +120,8 @@ def pos_cost(p, q, P):
     if abs(FINGER_NO[fp] - FINGER_NO[fq]) == 1 and rp != rq:
         high = fp if rp < rq else fq          # finger in the higher row
         other = fq if high == fp else fp
-        cost += P[SCISSOR[(high, other)]] * abs(rp - rq)
+        rows = abs(rp - rq)
+        cost += P[SCISSOR[(high, other)]] * (1 if rows == 1 else P["sc_full_factor"] * (rows - 1))
     for (a, ca), (b, _) in (((fp, cp), (fq, cq)), ((fq, cq), (fp, cp))):
         if (ca == 1 and b == "middle") or (ca == 6 and b in ("ring", "middle")):
             cost += P["lateral"]
