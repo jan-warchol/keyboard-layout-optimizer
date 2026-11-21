@@ -34,6 +34,15 @@ references are re-measured in-session even though phase 1 measured
 cycles `a b Spc`, the context of the phase-1 triples, shown with Space
 last. Report: `python3 analysis/measurements.py focus` (all focus plans together).
 
+Round notes:
+- `focus-1` round 1 (2026-11-21 evening): the user would afterwards rate
+  `u k Spc` (full scissor, index up) 5, not the 4 given, like `k u Spc`.
+  Raw data left as typed; the median over three rounds absorbs it.
+  First look (one session, not session-corrected): index up + middle down
+  costs +70-120 ms per one-row scissor and +95-135 for the full one, rated
+  3-5, i.e. 3-4× the 30 ms guess; middle up + index down +10-70 ms, rated
+  1-2, more than the "nearly free" 5 ms guess but comfortable.
+
 Not measured yet, though the user finds them straining too: middle-ring
 scissors (both directions) and ring up + pinky down. In the sweep they
 matter less (regret ≤ 0.4 even at 6× the guess), because good layouts
