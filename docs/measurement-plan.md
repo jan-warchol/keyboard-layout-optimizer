@@ -357,8 +357,8 @@ Recompute with `python3 analysis/measurements.py report`.
   sequence (since 2026-11-21, trials marked `advance_on_error`): before,
   the correct key had to follow, and after a slip the user lost track of
   the position and made several errors in a row. Cycles containing an
-  error are left out of the cycle time. A wrong key invalidates the transition into it; error counts
-  are kept as an additional cost signal.
+  error are left out of the cycle time, and a wrong key invalidates the
+  transition into it. Error counts are kept as an additional cost signal.
 - **Discomfort rating** after every trial, on the top row `. u i o b`:
   1 effortless · 2 fine · 3 some effort · 4 uncomfortable · 5 strain.
 - **Control trials** (`n r` and the inward roll `h l r n`) at the start and
