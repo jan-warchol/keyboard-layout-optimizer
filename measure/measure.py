@@ -5,7 +5,8 @@ Each trial highlights 1-4 keys and shows the sequence to type cyclically
 (e.g. "u n u n ..." or "u n r u n r ..."), typed as if it were part of a
 word - separate key presses, not a back-and-forth oscillation or a sprint.
 Afterwards rate the discomfort on the top row keys . u i o b = 1-5
-(Backspace = redo, Del = skip). Del during a trial pauses.
+(Backspace = redo, Del = skip). Del during a trial pauses, Backspace
+starts it over (nothing saved).
 
 Works on the measurement layer (see make_measurement_layer.py) or on layer 4
 (the typing layer, plain keys since 2026-11-19): both send the same keys
@@ -570,7 +571,8 @@ def run_trial(kb, pattern, header, cycles):
         screen(header, "", draw_keyboard(labels), "", *intro,
                sequence_view(pattern, cycles, nxt), "", f"   errors: {errors}", msg)
 
-    show("   start whenever ready   (Del = pause)")
+    restart_ok = REDO_KEY not in {key_of(e) for e in pattern}
+    show("   start whenever ready   (Del = pause" + (", Bsp = start over)" if restart_ok else ")"))
     open_presses = {}
     while nxt < total:
         for pos, down, t in kb.events(None):
@@ -583,6 +585,8 @@ def run_trial(kb, pattern, header, cycles):
                 continue
             if pos in PAUSE_KEYS or pos == "blur":
                 return "paused", presses
+            if pos == REDO_KEY and restart_ok:
+                return "restart", presses
             if pos in mods:
                 held.add(pos)
                 presses.append([pos, t, None, MOD_INDEX])
@@ -721,6 +725,8 @@ def cmd_run(args):
             status, presses = run_trial(kb, pattern, header, cycles)
             if status == "quit":
                 return "quit"
+            if status == "restart":
+                continue
             if status == "paused":
                 screen("Paused (trial discarded).", "",
                        "   Key presses in other windows are ignored.",

@@ -352,6 +352,7 @@ Recompute with `python3 analysis/measurements.py report`.
 - **Timing** from kernel input events (`/dev/input`), press-to-press.
   Releases are logged too (hold time, rollover). Rollover is normal in
   comfortable sequences (the old keylogs show it too).
+- **Start over:** Backspace during a trial discards it and starts again.
 - **Errors:** a wrong key invalidates the transition into it; error counts
   are kept as an additional cost signal.
 - **Discomfort rating** after every trial, on the top row `. u i o b`:
