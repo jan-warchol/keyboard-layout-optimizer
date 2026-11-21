@@ -26,7 +26,22 @@ references it needs, `measure.py run --plan focus-N`:
 | `focus-2` | `lateral` (18) + home-row `n r Spc`, `r n Spc` |
 | `focus-3` | `sf-index` (10) + `layer` for `n r` (8, includes the plain pair) |
 | `focus-4` | `layer` for `n l` and `r l` (16) |
+| `focus-5` | `layer-fingers` (16): `n r l` both orders, no Space, layer held for none / one / two / all letters |
+| `focus-6` | `space-row` (12): index-middle + Space vs index-middle-ring, top / home / bottom row |
 
+`focus-5` and `focus-6` were added after the first rounds (user, 2026-11-21):
+- With Space, the layer key and Space alternate on one thumb; the first
+  `focus-3` run needed ~8 restarts, mostly thumb errors. That measures
+  the layer switch *plus* the thumb's next press. It occurs in text and
+  stays measured, but `layer-fingers` isolates the switch itself
+  (all-three-held = holding without switching). Patterns with a held
+  layer key now get 20 cycles, 8 of them warm-up (`MOD_CYCLES`).
+- Space next to a top-row key stretches the whole hand (thumb down,
+  finger up), so with-Space patterns overstate top-row discomfort.
+  `space-row` separates it: the top-vs-home difference with Space minus
+  the same difference with the ring finger instead of Space. Swept in the
+  model as `space_top` (docs/optimizer.md): it moves the layout from
+  ~4× the 20 ms guess.
 Each is run 3 times on different days (`--repeats 3`). For these plans a
 pattern counts as done only from trials of the same plan, so the
 references are re-measured in-session even though phase 1 measured
@@ -42,6 +57,10 @@ Round notes:
   costs +70-120 ms per one-row scissor and +95-135 for the full one, rated
   3-5, i.e. 3-4× the 30 ms guess; middle up + index down +10-70 ms, rated
   1-2, more than the "nearly free" 5 ms guess but comfortable.
+- Ratings of `n r Spc` (2 in every session, also phase 1) vs `r n Spc`
+  and the pair `n r` (always 1): the 2 belongs to the outward direction
+  followed by Space, not to the pair.
+- `focus-3` round 1: stopped after 4 trials (layer patterns, see above).
 - `focus-2` round 1 (2026-11-21 evening, 15 min after focus-1; controls
   ~7% faster than in focus-1). Lateral stretch vs the same pattern with
   the index in column 2, session-corrected through the shared home-row

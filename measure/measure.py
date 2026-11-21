@@ -32,7 +32,11 @@ focused (terminal focus reporting).
       sf-index: index same-finger bigrams followed by Space (10 patterns)
       layer:   home-row pairs + Space with the layer key held for none,
                the first, the second or both letters (24 patterns)
-      focus-1..focus-4: the four above split into sessions of <= 20
+      layer-fingers: home-row finger triples, no Space, layer key held
+               for none, one, two or all three letters (16 patterns)
+      space-row: same-row finger triples with and without Space, top /
+               home / bottom row: the hand stretch of Space + top row (12)
+      focus-1..focus-6: the above split into sessions of <= 20
                patterns, each with its references (see FOCUS_SPLIT)
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
@@ -78,6 +82,9 @@ CYCLES = {1: 30, 2: 20, 3: 13, 4: 10, 5: 8, 6: 7}      # cycles per trial, by pa
 WARMUP_CYCLES = {1: 8, 2: 5, 3: 3, 4: 3, 5: 3, 6: 3}   # >= 8 presses; 5-6: to be set by the pilot
 # Plans that override the above: plan -> (cycles, warm-up cycles)
 PLAN_CYCLES = {"pilot-words": (20, 0), "pilot-chain": (15, 0), "pilot-real": (15, 0)}
+# Patterns with a held layer key: the first runs needed ~8 restarts (user,
+# 2026-11-21), so more warm-up before measuring.
+MOD_CYCLES = (20, 8)
 PAUSE_MS = 1500                 # longer gaps don't count as transitions
 STRETCH_S = 3 * 60              # active measuring time between breaks
 BREAK_S = 30
@@ -333,9 +340,34 @@ def layer_plan():
     return [canonical(p) for p in pats]
 
 
+def layer_fingers_plan():
+    """Layer switch without Space: the thumb presses only the layer key.
+    Finger triples n r l in both orders, the layer key held for none, each
+    single letter, each two consecutive letters, or all three (held for the
+    whole cycle: no switching). 16 patterns; plain = phase-1 triples."""
+    L = LAYER_KEY + "+"
+    pats = []
+    for tri in (("r2c2", "r2c3", "r2c4"), ("r2c4", "r2c3", "r2c2")):
+        for mask in itertools.product((0, 1), repeat=3):
+            pats.append(tuple(L + x if m else x for x, m in zip(tri, mask)))
+    return [canonical(p) for p in pats]
+
+
+def space_row_plan():
+    """Space next to top-row keys stretches the whole hand (user). Index-
+    middle pairs + Space in the top, home and bottom row, against the same
+    rows typed with the ring finger instead of Space (index-middle-ring,
+    no thumb). Both orders: 12 patterns."""
+    pats = []
+    for r in (1, 2, 3):
+        i, m, ring = f"r{r}c2", f"r{r}c3", f"r{r}c4"
+        pats += [(i, m, "t4"), (m, i, "t4"), (i, m, ring), (ring, m, i)]
+    return [canonical(p) for p in pats]
+
+
 def focus_plan():
     return list(dict.fromkeys(scissors_im_plan() + lateral_plan() + sf_index_plan()
-                              + layer_plan()))
+                              + layer_plan() + layer_fingers_plan() + space_row_plan()))
 
 
 def _layer_pairs(pairs):
@@ -351,12 +383,16 @@ FOCUS_SPLIT = {
     "focus-2": lambda: lateral_plan() + HOME_IM,                             # 20
     "focus-3": lambda: sf_index_plan() + _layer_pairs([("r2c2", "r2c3")]),  # 18
     "focus-4": lambda: _layer_pairs([("r2c2", "r2c4"), ("r2c3", "r2c4")]),  # 16
+    "focus-5": lambda: layer_fingers_plan(),                                 # 16
+    "focus-6": lambda: space_row_plan(),                                     # 12
 }
 
 
 def space_last(pattern):
     """Rotate a cyclic pattern so Space comes last, like the end of a word."""
     p = list(pattern)
+    if "t4" not in p:
+        return display_order(p)
     i = p.index("t4")
     return p[i + 1:] + p[:i + 1]
 
@@ -365,13 +401,15 @@ PLANS = {"phase1": phase1_plan, "phase2a": phase2a_plan, "pilot-words": pilot_wo
          "pilot-chain": pilot_chain_plan, "pilot-real": pilot_real_plan, "bigrams": bigram_plan,
          "scissors": scissors_plan, "scissors-im": scissors_im_plan, "lateral": lateral_plan,
          "sf-index": sf_index_plan,
-         "layer": layer_plan, **FOCUS_SPLIT}
+         "layer": layer_plan, "layer-fingers": layer_fingers_plan,
+         "space-row": space_row_plan, **FOCUS_SPLIT}
 # Plans run in their own order, with planned repeats inside one session.
 FIXED_ORDER = {"pilot-words", "pilot-chain", "pilot-real"}
 # Plans whose words are shown as planned, not rotated by display_order.
 AS_PLANNED = {"pilot-chain", "pilot-real"}
 # Plans whose patterns are shown with Space last.
-SPACE_LAST = {"scissors", "scissors-im", "lateral", "sf-index", "layer", *FOCUS_SPLIT}
+SPACE_LAST = {"scissors", "scissors-im", "lateral", "sf-index", "layer", "space-row",
+              *FOCUS_SPLIT}
 # Plans whose patterns count as done only from their own trials (their
 # reference patterns were measured elsewhere too, but are needed in-session).
 OWN_COUNT = set(FOCUS_SPLIT)
@@ -676,6 +714,8 @@ def cmd_run(args):
             k = len(pattern)
             if plan_name in PLAN_CYCLES and not control:
                 cycles, warmup = PLAN_CYCLES[plan_name]
+            elif any(mod_of(e) for e in pattern):
+                cycles, warmup = MOD_CYCLES   # layer switches need practice (user)
             else:
                 cycles, warmup = CYCLES[k], WARMUP_CYCLES[k]
             status, presses = run_trial(kb, pattern, header, cycles)

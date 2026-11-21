@@ -177,5 +177,9 @@ be worse than the baseline, so regret ≥ 0, and best-of-8 is stable to
   mostly `ti`/`it` (`i` at r2c1, `t` at r2c3), then `bi hi di zi`. Added
   to the focus measurements.
 
+  **Space next to the top row** (`space_top`, 20 ms *(guess)*, ×2 for the
+  number row; added after the user noted the whole hand stretches):
+  ×0.5/×2 ≤ 0.1, ×4 **1.2**, ×6 **2.6**. Measured by `focus-6`.
+
   Base layer unchanged from the scissor sweep: `g o d l c f` / `i a t s n
   w` / `p e z m r /`.

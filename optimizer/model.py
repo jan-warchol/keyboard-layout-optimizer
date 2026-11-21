@@ -63,6 +63,9 @@ PARAMS = {
     "e_num_middle": 45, "e_num_col6": 50, "e_num_other": 80, "e_col0": 20,
     # thumb (phase 1: finger→Space nearly simultaneous, Space→finger ~130)
     "to_space": 60, "from_space": 120, "space_finger_step": 20,
+    # Space next to a top-row key: the thumb down and a finger up stretch
+    # the whole hand (user, 2026-11-21); twice that for the number row *(guess)*
+    "space_top": 20,
     # modifiers *(guess; phase 5 is the layer-switch experiment)*
     "layer": 60, "layer_cont": 15, "shift": 50, "shift_cont": 15,
     # elsewhere
@@ -95,6 +98,11 @@ def effort(pos, P):
     return (P["e_top"], 0, P["e_bottom"])[r - 1]
 
 
+def space_stretch(pos, P):
+    """Extra cost of a top-row (or number-row) key next to Space."""
+    return P["space_top"] * {0: 2, 1: 1}.get(rc(pos)[0], 0)
+
+
 def pos_cost(p, q, P):
     """Cost of the transition p → q between physical positions."""
     if p in PSEUDO or q in PSEUDO:
@@ -103,9 +111,12 @@ def pos_cost(p, q, P):
     if p == q:
         return P[f"repeat_{fp}"]
     if fq == "thumb":
-        return P["to_space"] if fp != "thumb" else P["repeat_thumb"]
+        if fp == "thumb":
+            return P["repeat_thumb"]
+        return P["to_space"] + space_stretch(p, P)
     if fp == "thumb":
-        return P["from_space"] + P["space_finger_step"] * (FINGER_NO[fq] - 1) + effort(q, P)
+        return (P["from_space"] + P["space_finger_step"] * (FINGER_NO[fq] - 1) + effort(q, P)
+                + space_stretch(q, P))
     (rp, cp), (rq, cq) = rc(p), rc(q)
     e = effort(q, P)
     if fp == fq:

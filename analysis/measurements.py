@@ -11,6 +11,7 @@ Everything is recomputed from the raw trials; nothing is stored. Findings
 are summarised in docs/measurement-plan.md.
 """
 import collections
+import itertools
 import math
 import os
 import statistics as st
@@ -210,8 +211,8 @@ def warmup(plan="pilot-chain"):
                   + f"   ({(v[-1] / v[0] - 1) * 100:+.0f}%)")
 
 
-FOCUS_PLANS = {"scissors", "scissors-im", "lateral", "sf-index", "layer",
-               "focus-1", "focus-2", "focus-3", "focus-4"}
+FOCUS_PLANS = {"scissors", "scissors-im", "lateral", "sf-index", "layer", "layer-fingers",
+               "space-row", "focus-1", "focus-2", "focus-3", "focus-4", "focus-5", "focus-6"}
 ROW = {1: "top", 2: "home", 3: "bottom"}
 
 
@@ -300,6 +301,28 @@ def focus():
         row = [cell(ref), cell(get(L + a, b, "t4"), ref), cell(get(a, L + b, "t4"), ref),
                cell(get(L + a, L + b, "t4"), ref)]
         print(f"  {LABEL[a]} {LABEL[b]:4}" + "".join(f"{x:>15}" for x in row))
+
+    print(f"\nLAYER SWITCH WITHOUT SPACE ({LABEL[LAYER_KEY]} held, thumb presses nothing else):"
+          "\n  cycle ms, diff vs plain (rating); held for: which letters")
+    for tri in (("r2c2", "r2c3", "r2c4"), ("r2c4", "r2c3", "r2c2")):
+        ref = get(*tri)
+        print(f"  {' '.join(LABEL[x] for x in tri)}")
+        for mask in itertools.product((0, 1), repeat=3):
+            pat = tuple(L + x if m else x for x, m in zip(tri, mask))
+            which = " ".join(LABEL[x] for x, m in zip(tri, mask) if m) or "none"
+            print(f"    {which:8} {cell(get(*pat), None if not any(mask) else ref)}")
+
+    print("\nSPACE AND ROW: index-middle + Space vs index-middle-ring, by row;"
+          "\n  diff vs the home row (rating). Space stretch = Space diff - ring diff")
+    for order in ("index first", "middle first"):
+        print(f"  {order}{'with Space':>22}{'with ring':>15}")
+        for r in (1, 2, 3):
+            i, m, ring = f"r{r}c2", f"r{r}c3", f"r{r}c4"
+            sp, rg = ((i, m, "t4"), (i, m, ring)) if order == "index first" else \
+                ((m, i, "t4"), (ring, m, i))
+            sp0, rg0 = [tuple(x.replace(f"r{r}", "r2") for x in pat) for pat in (sp, rg)]
+            print(f"  {ROW[r]:>8}{'':6}{cell(get(*sp), get(*sp0)):>15}"
+                  f"{cell(get(*rg), get(*rg0)):>15}")
 
 
 if __name__ == "__main__":
