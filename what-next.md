@@ -77,5 +77,12 @@ sweep. Details and results: [docs/optimizer.md](docs/optimizer.md).
   user finds t4 hard to reach and wants Ctrl, Shift and the layer key on
   t1-t3; Space on t4 is not acceptable. Open: Space on t3 with
   something on a dual-use key, or in the grid.
+- Ctrl (user, 2026-11-22): dual-use on a pinky home key, tap = Polish
+  one-shot, hold = Ctrl, plus a backup Ctrl elsewhere. `anneal.py
+  --dk-pos`: r2c6 236.5, r2c5 237.3, free placement 233.3 ms/char.
+  Unmodelled: misfires when rolling the key into the next letter; Ctrl
+  shortcuts with letters on the pinky columns. Chrysalis dual-use keys
+  only take a plain key as the tap; tap = one-shot layer needs a Qukey in
+  the firmware sketch *(guess, to check)*.
 - Polish letters: the preference "under its Latin letter" is weak in the
   model (`polish_off`); layouts place them freely.

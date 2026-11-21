@@ -57,7 +57,7 @@ def load(n):
 
 
 class Problem:
-    def __init__(self, P, polish="oneshot", space="thumb"):
+    def __init__(self, P, polish="oneshot", space="thumb", dk_pos=None):
         """polish: "oneshot" (Polish letters = one-shot key + Latin letter) or
         "layer" (Polish letters on their own keys, preferably under their
         Latin letters on layer 2)."""
@@ -71,8 +71,8 @@ class Problem:
         uni, bi = load(1), load(2)
         if polish == "oneshot":
             self.items = [(l, l.upper()) for l in LATIN] + [(p[0], p[1]) for p in PAIRS] \
-                + [(DK, DK_UP)]
-            self.base_only = BASE_ONLY | {DK}
+                + ([] if dk_pos else [(DK, DK_UP)])
+            self.base_only = BASE_ONLY | ({DK} if not dk_pos else set())
         else:
             self.items = ITEMS
             self.base_only = BASE_ONLY
@@ -80,7 +80,7 @@ class Problem:
             self.items = self.items + [(" ", SPACE_UP)]
             self.base_only = self.base_only | {" "}
         pinned = {ch for d in PINNED_POS.values() for ch in d.values()}
-        n_cells = len(GRID) * 2 - 2 * len(PINNED_POS)
+        n_cells = len(GRID) * 2 - 2 * len(PINNED_POS) - (1 if dk_pos else 0)
         # loose symbols: one per free key, unshifted half only (unrelated
         # symbols sharing a key surprised the user)
         free = n_cells - len(self.items)
@@ -94,7 +94,7 @@ class Problem:
         # units: whole-key items (letters and symbol pairs: lower halves, then
         # upper halves), loose symbols, pinned, fixed, pseudo
         self.units = ([lo for lo, _ in self.items] + [up for _, up in self.items] + syms
-                      + sorted(pinned) + list(fixed) + PSEUDO)
+                      + sorted(pinned) + ([DK, DK_UP] if dk_pos else []) + list(fixed) + PSEUDO)
         self.uidx = {u: i for i, u in enumerate(self.units)}
 
         def unit(ch):
@@ -129,7 +129,12 @@ class Problem:
         for pos, d in PINNED_POS.items():
             for (layer, shift), ch in d.items():
                 self.fixed_slot[self.uidx[ch]] = self.S.index[(pos, layer, shift)]
-        self.cells = [(pos, l) for pos in GRID for l in (0, 1) if pos not in PINNED_POS]
+        if dk_pos:
+            # one-shot key pinned (e.g. dual-use: tap = one-shot, hold = Ctrl)
+            self.fixed_slot[self.uidx[DK]] = self.S.index[(dk_pos, 0, 0)]
+            self.fixed_slot[self.uidx[DK_UP]] = self.S.index[(dk_pos, 0, 1)]
+        self.cells = [(pos, l) for pos in GRID for l in (0, 1)
+                      if pos not in PINNED_POS and (pos, l) != (dk_pos, 0)]
         self.sym_halves = ([self.S.index[(pos, l, 0)] for pos, l in self.cells]
                            + [self.S.index[(pos, l, 0)] for pos in PINNED_POS for l in (0, 1)
                               if (l, 0) not in PINNED_POS[pos]])
@@ -375,8 +380,8 @@ def _anneal(slot_of, steps, t0, t1, seed, F, C, nb_ptr, nb_v, nb_out, nb_in, cel
     return best, bs
 
 
-def run(P, restarts, steps, seed=0, space="thumb"):
-    prob = Problem(P, space=space)
+def run(P, restarts, steps, seed=0, space="thumb", dk_pos=None):
+    prob = Problem(P, space=space, dk_pos=dk_pos)
     results = []
     for i in range(restarts):
         rng = random.Random(seed + i)
@@ -394,6 +399,7 @@ def main():
     ap.add_argument("--params", help="JSON from optimizer/fit.py (fitted parameters)")
     ap.add_argument("--space", choices=("thumb", "grid"), default="thumb",
                     help="Space on the thumb (t4) or on a finger key in the grid")
+    ap.add_argument("--dk-pos", help="pin the Polish one-shot key to this grid position, e.g. r2c5")
     a = ap.parse_args()
     P = dict(PARAMS)
     if a.params:
@@ -403,7 +409,7 @@ def main():
         k, v = kv.split("=")
         assert k in P, k
         P[k] = float(v)
-    prob, res = run(P, a.restarts, a.steps, a.seed, a.space)
+    prob, res = run(P, a.restarts, a.steps, a.seed, a.space, a.dk_pos)
     print("symbols placed:", "".join(prob.symbols))
     for slot_of, s in res:
         print(f"score {s:.2f} ms/char")
