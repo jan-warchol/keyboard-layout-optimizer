@@ -294,3 +294,9 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   User: tiredness grows slowly and has no clear moment; better measure
   the slowdown over a long trial and when it starts, though a slowdown
   marks strain rather than tiredness.
+- 2026-11-21 (night): the held layer key next to Space costs +250-600 ms
+  per word-like cycle, mostly from timing the release (user). Options:
+  let the optimizer keep word-boundary letters on the base layer (model
+  cost after `focus-5`), a **one-shot layer key** (measured by `focus-7`;
+  the user finds it promising), or Space in the grid (removes the thumb
+  conflict but not the release timing, and costs a prime finger slot).

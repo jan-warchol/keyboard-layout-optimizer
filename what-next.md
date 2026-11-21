@@ -49,7 +49,7 @@ sweep. Details and results: [docs/optimizer.md](docs/optimizer.md).
 ## Next steps
 
 1. **Run the focus measurements** (the user): `python3 measure/measure.py
-   run --plan focus-1` … `focus-6` (12-20 patterns each, ~5 min *(guess)*;
+   run --plan focus-1` … `focus-7` (12-20 patterns each, ~5 min *(guess)*;
    pause keystats first), each three times on different days. Done so
    far: focus-1 to focus-4 round 1. Then `python3 analysis/measurements.py
    focus`, and set the model parameters from it: scissors per direction,

@@ -37,9 +37,11 @@ focused (terminal focus reporting).
                the first, the second or both letters (24 patterns)
       layer-fingers: home-row finger triples, no Space, layer key held
                for none, one, two or all three letters (16 patterns)
+      oneshot: one-shot layer key emulated by tapping Sft (not holding it)
+               before the layered letter: the same pairs as layer (18)
       space-row: same-row finger triples with and without Space, top /
                home / bottom row: the hand stretch of Space + top row (12)
-      focus-1..focus-6: the above split into sessions of <= 20
+      focus-1..focus-7: the above split into sessions of <= 20
                patterns, each with its references (see FOCUS_SPLIT)
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
@@ -84,7 +86,8 @@ PROTOCOL = 2
 CYCLES = {1: 30, 2: 20, 3: 13, 4: 10, 5: 8, 6: 7}      # cycles per trial, by pattern length
 WARMUP_CYCLES = {1: 8, 2: 5, 3: 3, 4: 3, 5: 3, 6: 3}   # >= 8 presses; 5-6: to be set by the pilot
 # Plans that override the above: plan -> (cycles, warm-up cycles)
-PLAN_CYCLES = {"pilot-words": (20, 0), "pilot-chain": (15, 0), "pilot-real": (15, 0)}
+PLAN_CYCLES = {"pilot-words": (20, 0), "pilot-chain": (15, 0), "pilot-real": (15, 0),
+               "oneshot": (15, 6), "focus-7": (15, 6)}   # new movement: more warm-up
 # Patterns with a held layer key: the first runs needed ~8 restarts (user,
 # 2026-11-21), so more warm-up before measuring.
 MOD_CYCLES = (20, 8)
@@ -368,9 +371,23 @@ def space_row_plan():
     return [canonical(p) for p in pats]
 
 
+def oneshot_plan():
+    """One-shot layer key: tap the layer key, then the letter (no release to
+    time). Emulated by tapping LAYER_KEY as a plain key. Home-row pairs of
+    the layer plan + Space: one-shot before the first letter, before the
+    second, or before each (two taps). 18 patterns; compare with the held
+    variants of the layer plan."""
+    pats = []
+    for a, b in itertools.permutations(("r2c2", "r2c3", "r2c4"), 2):
+        pats += [(LAYER_KEY, a, b, "t4"), (a, LAYER_KEY, b, "t4"),
+                 (LAYER_KEY, a, LAYER_KEY, b, "t4")]
+    return [canonical(p) for p in pats]
+
+
 def focus_plan():
     return list(dict.fromkeys(scissors_im_plan() + lateral_plan() + sf_index_plan()
-                              + layer_plan() + layer_fingers_plan() + space_row_plan()))
+                              + layer_plan() + layer_fingers_plan() + space_row_plan()
+                              + oneshot_plan()))
 
 
 def _layer_pairs(pairs):
@@ -388,6 +405,7 @@ FOCUS_SPLIT = {
     "focus-4": lambda: _layer_pairs([("r2c2", "r2c4"), ("r2c3", "r2c4")]),  # 16
     "focus-5": lambda: layer_fingers_plan(),                                 # 16
     "focus-6": lambda: space_row_plan(),                                     # 12
+    "focus-7": lambda: oneshot_plan(),                                       # 18
 }
 
 
@@ -405,13 +423,13 @@ PLANS = {"phase1": phase1_plan, "phase2a": phase2a_plan, "pilot-words": pilot_wo
          "scissors": scissors_plan, "scissors-im": scissors_im_plan, "lateral": lateral_plan,
          "sf-index": sf_index_plan,
          "layer": layer_plan, "layer-fingers": layer_fingers_plan,
-         "space-row": space_row_plan, **FOCUS_SPLIT}
+         "space-row": space_row_plan, "oneshot": oneshot_plan, **FOCUS_SPLIT}
 # Plans run in their own order, with planned repeats inside one session.
 FIXED_ORDER = {"pilot-words", "pilot-chain", "pilot-real"}
 # Plans whose words are shown as planned, not rotated by display_order.
 AS_PLANNED = {"pilot-chain", "pilot-real"}
 # Plans whose patterns are shown with Space last.
-SPACE_LAST = {"scissors", "scissors-im", "lateral", "sf-index", "layer", "space-row",
+SPACE_LAST = {"scissors", "scissors-im", "lateral", "sf-index", "layer", "space-row", "oneshot",
               *FOCUS_SPLIT}
 # Plans whose patterns count as done only from their own trials (their
 # reference patterns were measured elsewhere too, but are needed in-session).

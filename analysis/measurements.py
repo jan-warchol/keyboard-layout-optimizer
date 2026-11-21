@@ -223,7 +223,8 @@ def warmup(plan="pilot-chain"):
 
 
 FOCUS_PLANS = {"scissors", "scissors-im", "lateral", "sf-index", "layer", "layer-fingers",
-               "space-row", "focus-1", "focus-2", "focus-3", "focus-4", "focus-5", "focus-6"}
+               "space-row", "oneshot", "focus-1", "focus-2", "focus-3", "focus-4", "focus-5",
+               "focus-6", "focus-7"}
 ROW = {1: "top", 2: "home", 3: "bottom"}
 
 
@@ -317,6 +318,19 @@ def focus():
         row = [cell(ref), cell(get(L + a, b, "t4"), ref), cell(get(a, L + b, "t4"), ref),
                cell(get(L + a, L + b, "t4"), ref)]
         print(f"  {LABEL[a]} {LABEL[b]:4}" + "".join(f"{x:>15}" for x in row))
+
+    S = LAYER_KEY
+    print(f"\nONE-SHOT vs HELD LAYER KEY ({LABEL[S]} tapped vs held): cycle ms,"
+          "\n  diff vs plain 'a b Spc' (rating)")
+    print(f"  {'pair':6}{'layer on':>9}{'held':>15}{'one-shot':>15}")
+    for a, b in itertools.permutations(("r2c2", "r2c3", "r2c4"), 2):
+        ref = get(a, b, "t4")
+        for which, held, tap in (
+                ("first", (L + a, b, "t4"), (S, a, b, "t4")),
+                ("second", (a, L + b, "t4"), (a, S, b, "t4")),
+                ("both", (L + a, L + b, "t4"), (S, a, S, b, "t4"))):
+            print(f"  {LABEL[a]} {LABEL[b]:4}{which:>9}{cell(get(*held), ref):>15}"
+                  f"{cell(get(*tap), ref):>15}")
 
     print(f"\nLAYER SWITCH WITHOUT SPACE ({LABEL[LAYER_KEY]} held, thumb presses nothing else):"
           "\n  cycle ms, diff vs plain (rating); held for: which letters")

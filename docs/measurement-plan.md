@@ -28,6 +28,15 @@ references it needs, `measure.py run --plan focus-N`:
 | `focus-4` | `layer` for `n l` and `r l` (16) |
 | `focus-5` | `layer-fingers` (16): `n r l` both orders, no Space, layer held for none / one / two / all letters |
 | `focus-6` | `space-row` (12): index-middle + Space vs index-middle-ring, top / home / bottom row |
+| `focus-7` | `oneshot` (18): the `layer` pairs with Sft *tapped* before the first, the second or each letter |
+
+`focus-7`: a one-shot layer key (tap it, the next letter comes from layer 2;
+held, it works as a normal layer key) removes the release timing that
+makes held single layered letters slow and error-prone. Tapping the
+layer key is a plain thumb press, so it is emulated by tapping Sft as an
+ordinary pattern key (`n Sft r Spc`); no keymap change needed. 15 cycles,
+6 warm-up (new movement). The user has used one-shot keys only briefly,
+for modifier chords.
 
 `focus-5` and `focus-6` were added after the first rounds (user, 2026-11-21):
 - With Space, the layer key and Space alternate on one thumb; the first
