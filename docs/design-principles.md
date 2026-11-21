@@ -218,7 +218,9 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
 
 ## Open questions
 
-- How to combine time, rating and error rate into a single cost.
+- How to combine time, rating and error rate into a single cost (rating
+  scale decided 2026-11-21, see the decision log; the weight of time vs
+  discomfort: fatigue test, design open).
 - Do cyclic words represent transitions inside real text well enough?
   (2-key cycles of different fingers don't: they're trills. Check words
   with held-out predictions and typing tests on candidate layouts.)
@@ -282,3 +284,10 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   measurements (scissors index-middle, lateral, index same-finger, layer
   switch). Middle-ring and ring-pinky scissors, also straining for the
   user, come in a later round: layouts avoid them anyway.
+- 2026-11-21 (evening): combining time and rating. Ratings become a
+  penalty per cycle on the scale 0 1 3 6 12 (effortless … strain; "fine"
+  is noticeably worse than effortless). The user would always pick the
+  less effortful of two patterns even if slower, so discomfort dominates
+  and time is mostly a tie-breaker; no exchange rate from preference
+  questions. Proposed instead: a fatigue test, i.e. how fast the hand
+  tires on a pattern typed at a fixed, similar pace (design open).
