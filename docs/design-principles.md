@@ -346,3 +346,14 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
 - **2026-11-21, shifted digits:** `! @ # $ % *` come from the shifted digits
   1-5 and 8 of the function layer (user), so the optimizer no longer
   places them (`anneal.SHIFTED_DIGITS`, costed like digits).
+- **2026-11-22, more from the test layouts** (user):
+  - A frequent letter (t) on the pinky bottom key will not work well.
+    `e_pinky_bottom` 12 → 25 *(guess)*.
+  - Index in the stretch column with the pinky: pinky bottom + index c1
+    home uncomfortable, both bottom strain; pinky home + index c1 bottom
+    uncomfortable, c1 home some effort. Model `spread_ip`,
+    `spread_bottom_factor` *(guess)*; plan `focus-10`.
+  - i and e on index top and bottom (first test layout) felt more
+    comfortable than both on the home row (c1 and c2). c1 efforts raised
+    *(guess)*.
+  - Test the one-shot layer key alone first; the dual-use Ctrl hold later.

@@ -31,6 +31,7 @@ references it needs, `measure.py run --plan focus-N`:
 | `focus-7` | `oneshot` (18): the `layer` pairs with Sft *tapped* before the first, the second or each letter |
 | `focus-8` | `scissors-far` (20): index-ring (c2, c4) and middle-pinky (c3, c5), top-home and top-bottom in both directions, both orders, + Space, + home-home references (bottom-home assumed like top-home, to keep it to one session) |
 | `focus-9` | `pinky-reach` (16): index or middle at home with pinky home / top / c6 home / c6 top, both orders, + Space |
+| `focus-10` | `spread-ip` (12): index c1 with pinky c5, home / bottom rows, both orders, + Space, vs index in c2 |
 
 `focus-8` and `focus-9` (added after the first typing test, 2026-11-21):
 the user found `n o` (ring top, index bottom) straining, about 4 of 5,

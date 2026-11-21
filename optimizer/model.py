@@ -59,11 +59,19 @@ PARAMS = {
     # top, index bottom) about 4 of 5, middle-pinky straining too:
     # ~6 penalty × 50 ms / full factor *(guess until focus-8, -9)*
     "sc_far": 100,
+    # index in the stretch column (c1) with the pinky: user, 2026-11-22,
+    # index home + pinky home "some effort" (3), one of them in the bottom
+    # row uncomfortable (4), both bottom strain (5); × factor per bottom-row
+    # key *(guess until focus-10)*
+    "spread_ip": 125, "spread_bottom_factor": 2.2,
     "lateral": 40,             # col 1 with middle, col 6 with ring/middle *(guess)*
     "numrow_low": 25,          # number row ↔ bottom row, half of it ↔ home *(guess)*
     # entering a key: effort by position *(guess, by feel)*
-    "e_top": 8, "e_bottom": 8, "e_pinky_top": 35, "e_pinky_bottom": 12,
-    "e_col1_home": 12, "e_col1_top": 25, "e_col1_bottom": 15,
+    "e_top": 8, "e_bottom": 8, "e_pinky_top": 35, "e_pinky_bottom": 25,
+    # c1 raised 2026-11-22 (were 12, 25, 15): the user found i e in index
+    # top and bottom (c2) more comfortable than both on the home row (c1,
+    # c2); pinky bottom raised from 12 (t there "will not work well") *(guess)*
+    "e_col1_home": 25, "e_col1_top": 35, "e_col1_bottom": 30,
     "e_col6_home": 25, "e_col6_top": 35,
     # pinky top (c5) raised from 25: the hand moves up, about as far as for
     # c6 top (user, 2026-11-21) *(guess until focus-10)*
@@ -154,6 +162,10 @@ def pos_cost(p, q, P):
     if abs(FINGER_NO[fp] - FINGER_NO[fq]) == 2 and rp != rq and 0 not in (rp, rq):
         rows = abs(rp - rq)
         cost += P["sc_far"] * (1 if rows == 1 else P["sc_full_factor"] * (rows - 1))
+    if pair == {"index", "pinky"}:
+        (ri, ci), (rk, _) = ((rp, cp), (rq, cq)) if fp == "index" else ((rq, cq), (rp, cp))
+        if ci == 1 and 0 not in (ri, rk):
+            cost += P["spread_ip"] * P["spread_bottom_factor"] ** ((ri == 3) + (rk == 3))
     for (a, ca), (b, _) in (((fp, cp), (fq, cq)), ((fq, cq), (fp, cp))):
         if (ca == 1 and b == "middle") or (ca == 6 and b in ("ring", "middle")):
             cost += P["lateral"]
