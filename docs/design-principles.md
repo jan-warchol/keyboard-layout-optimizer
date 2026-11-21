@@ -270,5 +270,8 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   (agents commit), git and Vim downweighted, dictated and pasted notes out
   (details in optimizer.md). Scissor cost per finger pair and direction,
   full scissor more than twice a one-row one (user's experience). First
-  sweeps: index same-finger cost, layer switch and different-finger base
-  matter most, but each by only ~1% of the score; scissors in the noise.
+  sweeps: what decides the layout is index-middle scissors (both
+  directions, if as bad as the user suspects), the index same-finger cost,
+  the layer switch and the different-finger base, each by ~1-2% of the
+  score; other scissors and strain features are in the noise. Measure
+  those few next (see what-next.md).
