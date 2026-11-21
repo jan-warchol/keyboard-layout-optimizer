@@ -14,7 +14,7 @@ Timestamps come from the kernel input device, not the terminal. The device
 sees every key press, so measuring is paused while the terminal is not
 focused (terminal focus reporting).
 
-  python3 measure/measure.py run [--stretches 5] [--plan phase1|phase2a|pilot-words|bigrams]
+  python3 measure/measure.py run [--stretches 5] [--plan phase1|phase2a|scissors|...]
                                  [--patterns FILE] [--repeats N]
       phase1:  home-row fingers + Space thumb (the baseline, see
                docs/design-principles.md); each pattern once per session
@@ -25,6 +25,8 @@ focused (terminal focus reporting).
       pilot-words: (first pilot, 4-6 key random words: too hard to learn)
       pilot-real: 8 Polish words typed on layer 4 (4 as they are, 4 with one
                letter swapped to its layer-4 key), each followed by Space
+      scissors: adjacent fingers in all row combinations, each followed by
+               Space ("l h Spc", both orders): row-change and scissor costs
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
             e.g. "u n r" or "r1c2 r2c2 r2c3"
@@ -242,12 +244,37 @@ def pilot_words_plan():
     return [canonical(p) for p in plan + [words[k][0] for k in (4, 5, 6)]]
 
 
+def scissors_plan():
+    """Adjacent fingers (index-middle, middle-ring, ring-pinky), each finger in
+    rows 1-3 (9 combinations, home-home is the in-session reference), both
+    orders, followed by Space: 3-key cycles like the phase-1 triples, which
+    settled without speed-up. Space as the third key keeps the cycle a
+    word-like 'a b Spc' instead of a trill. Opposite rows are the scissors
+    (ring down + pinky up suspected worst)."""
+    pats = []
+    for c in (2, 3, 4):
+        for ra, rb in itertools.product((1, 2, 3), repeat=2):
+            a, b = f"r{ra}c{c}", f"r{rb}c{c + 1}"
+            pats += [(a, b, "t4"), (b, a, "t4")]
+    return [canonical(p) for p in pats]
+
+
+def space_last(pattern):
+    """Rotate a cyclic pattern so Space comes last, like the end of a word."""
+    p = list(pattern)
+    i = p.index("t4")
+    return p[i + 1:] + p[:i + 1]
+
+
 PLANS = {"phase1": phase1_plan, "phase2a": phase2a_plan, "pilot-words": pilot_words_plan,
-         "pilot-chain": pilot_chain_plan, "pilot-real": pilot_real_plan, "bigrams": bigram_plan}
+         "pilot-chain": pilot_chain_plan, "pilot-real": pilot_real_plan, "bigrams": bigram_plan,
+         "scissors": scissors_plan}
 # Plans run in their own order, with planned repeats inside one session.
 FIXED_ORDER = {"pilot-words", "pilot-chain", "pilot-real"}
 # Plans whose words are shown as planned, not rotated by display_order.
 AS_PLANNED = {"pilot-chain", "pilot-real"}
+# Plans whose patterns are shown with Space last.
+SPACE_LAST = {"scissors"}
 
 
 def load_trials():
@@ -595,7 +622,12 @@ def cmd_run(args):
         if controls("start") == "quit":
             return
         while todo:
-            pattern = list(todo[0]) if plan_name in AS_PLANNED else display_order(todo[0])
+            if plan_name in AS_PLANNED:
+                pattern = list(todo[0])
+            elif plan_name in SPACE_LAST:
+                pattern = space_last(todo[0])
+            else:
+                pattern = display_order(todo[0])
             if len(pattern) == 2 and random.random() < 0.5:
                 pattern.reverse()   # balance which key comes first
             status = measure(pattern, False, f"trial {measured + 1}/{total_plan}")
