@@ -31,6 +31,9 @@ focused (terminal focus reporting).
       scissors: adjacent fingers in all row combinations, each followed by
                Space ("l h Spc", both orders): row-change and scissor costs
       scissors-im: the index-middle part of scissors (18 patterns)
+      scissors-ir, scissors-mp: the same for index-ring and middle-pinky
+               (a finger skipped, 18 each)
+      pinky-reach: pinky top and column-6 keys vs pinky home (16)
       lateral: index stretch column with the middle finger + Space (18)
       sf-index: index same-finger bigrams followed by Space (10 patterns)
       layer:   home-row pairs + Space with the layer key held for none,
@@ -41,7 +44,7 @@ focused (terminal focus reporting).
                before the layered letter: the same pairs as layer (18)
       space-row: same-row finger triples with and without Space, top /
                home / bottom row: the hand stretch of Space + top row (12)
-      focus-1..focus-7: the above split into sessions of <= 20
+      focus-1..focus-10: the above split into sessions of <= 20
                patterns, each with its references (see FOCUS_SPLIT)
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
@@ -289,7 +292,7 @@ def pilot_words_plan():
     return [canonical(p) for p in plan + [words[k][0] for k in (4, 5, 6)]]
 
 
-def scissors_plan(cols=(2, 3, 4)):
+def scissors_plan(cols=(2, 3, 4), gap=1):
     """Adjacent fingers (index-middle, middle-ring, ring-pinky), each finger in
     rows 1-3 (9 combinations, home-home is the in-session reference), both
     orders, followed by Space: 3-key cycles like the phase-1 triples, which
@@ -299,8 +302,32 @@ def scissors_plan(cols=(2, 3, 4)):
     pats = []
     for c in cols:
         for ra, rb in itertools.product((1, 2, 3), repeat=2):
-            a, b = f"r{ra}c{c}", f"r{rb}c{c + 1}"
+            a, b = f"r{ra}c{c}", f"r{rb}c{c + gap}"
             pats += [(a, b, "t4"), (b, a, "t4")]
+    return [canonical(p) for p in pats]
+
+
+def scissors_ir_plan():
+    """Index-ring (columns 2 and 4, a finger skipped): 18 patterns. The user,
+    typing the first test layout: 'n o' (ring top, index bottom) strains,
+    about 4 of 5."""
+    return scissors_plan(cols=(2,), gap=2)
+
+
+def scissors_mp_plan():
+    """Middle-pinky (columns 3 and 5): 18 patterns (user: straining too)."""
+    return scissors_plan(cols=(3,), gap=2)
+
+
+def pinky_reach_plan():
+    """Pinky keys above and beside home (c5 top, c6 home, c6 top) against
+    pinky home, after and before the index or middle finger at home, + Space:
+    16 patterns. The user: the pinky top key needs the hand to move up, about
+    as far as c6 top."""
+    pats = []
+    for f in ("r2c2", "r2c3"):
+        for t in ("r2c5", "r1c5", "r2c6", "r1c6"):
+            pats += [(f, t, "t4"), (t, f, "t4")]
     return [canonical(p) for p in pats]
 
 
@@ -410,6 +437,9 @@ FOCUS_SPLIT = {
     "focus-5": lambda: layer_fingers_plan(),                                 # 16
     "focus-6": lambda: space_row_plan(),                                     # 12
     "focus-7": lambda: oneshot_plan(),                                       # 18
+    "focus-8": lambda: scissors_ir_plan(),                                   # 18
+    "focus-9": lambda: scissors_mp_plan(),                                   # 18
+    "focus-10": lambda: pinky_reach_plan(),                                  # 16
 }
 
 
@@ -425,7 +455,8 @@ def space_last(pattern):
 PLANS = {"phase1": phase1_plan, "phase2a": phase2a_plan, "pilot-words": pilot_words_plan,
          "pilot-chain": pilot_chain_plan, "pilot-real": pilot_real_plan, "bigrams": bigram_plan,
          "scissors": scissors_plan, "scissors-im": scissors_im_plan, "lateral": lateral_plan,
-         "sf-index": sf_index_plan,
+         "sf-index": sf_index_plan, "scissors-ir": scissors_ir_plan,
+         "scissors-mp": scissors_mp_plan, "pinky-reach": pinky_reach_plan,
          "layer": layer_plan, "layer-fingers": layer_fingers_plan,
          "space-row": space_row_plan, "oneshot": oneshot_plan, **FOCUS_SPLIT}
 # Plans run in their own order, with planned repeats inside one session.
@@ -433,7 +464,8 @@ FIXED_ORDER = {"pilot-words", "pilot-chain", "pilot-real"}
 # Plans whose words are shown as planned, not rotated by display_order.
 AS_PLANNED = {"pilot-chain", "pilot-real"}
 # Plans whose patterns are shown with Space last.
-SPACE_LAST = {"scissors", "scissors-im", "lateral", "sf-index", "layer", "space-row", "oneshot",
+SPACE_LAST = {"scissors", "scissors-im", "scissors-ir", "scissors-mp", "pinky-reach",
+              "lateral", "sf-index", "layer", "space-row", "oneshot",
               *FOCUS_SPLIT}
 # Plans whose patterns count as done only from their own trials (their
 # reference patterns were measured elsewhere too, but are needed in-session).

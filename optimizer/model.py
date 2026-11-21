@@ -54,12 +54,19 @@ PARAMS = {
     # a full scissor (top + bottom row) costs this many one-row scissors;
     # user: clearly more than 2 *(guess)*
     "sc_full_factor": 3,
+    # scissors with a finger skipped (index-ring, middle-pinky), per row,
+    # either direction. User, typing the first test layout: 'n o' (ring
+    # top, index bottom) about 4 of 5, middle-pinky straining too:
+    # ~6 penalty × 50 ms / full factor *(guess until focus-8, -9)*
+    "sc_far": 100,
     "lateral": 40,             # col 1 with middle, col 6 with ring/middle *(guess)*
     "numrow_low": 25,          # number row ↔ bottom row, half of it ↔ home *(guess)*
     # entering a key: effort by position *(guess, by feel)*
-    "e_top": 8, "e_bottom": 8, "e_pinky_top": 25, "e_pinky_bottom": 12,
+    "e_top": 8, "e_bottom": 8, "e_pinky_top": 35, "e_pinky_bottom": 12,
     "e_col1_home": 12, "e_col1_top": 25, "e_col1_bottom": 15,
     "e_col6_home": 25, "e_col6_top": 35,
+    # pinky top (c5) raised from 25: the hand moves up, about as far as for
+    # c6 top (user, 2026-11-21) *(guess until focus-10)*
     "e_num_middle": 45, "e_num_other": 80, "e_col0": 20,
     # number row, index (c1, c2) and outer (c6) keys: worse than a layer
     # switch, for infrequent symbols only (user, 2026-11-21) *(guess)*
@@ -78,8 +85,15 @@ PARAMS = {
 }
 
 
+# The user presses the number-row pinky-stretch key with the ring finger
+# (the pinky doesn't reach it), 2026-11-21.
+FINGER_POS = {"r0c6": "ring"}
+
+
 def finger(pos):
-    return "thumb" if pos.startswith("t") else FINGER[int(pos[3])]
+    if pos.startswith("t"):
+        return "thumb"
+    return FINGER_POS.get(pos) or FINGER[int(pos[3])]
 
 
 def rc(pos):
@@ -137,6 +151,9 @@ def pos_cost(p, q, P):
         other = fq if high == fp else fp
         rows = abs(rp - rq)
         cost += P[SCISSOR[(high, other)]] * (1 if rows == 1 else P["sc_full_factor"] * (rows - 1))
+    if abs(FINGER_NO[fp] - FINGER_NO[fq]) == 2 and rp != rq and 0 not in (rp, rq):
+        rows = abs(rp - rq)
+        cost += P["sc_far"] * (1 if rows == 1 else P["sc_full_factor"] * (rows - 1))
     for (a, ca), (b, _) in (((fp, cp), (fq, cq)), ((fq, cq), (fp, cp))):
         if (ca == 1 and b == "middle") or (ca == 6 and b in ("ring", "middle")):
             cost += P["lateral"]

@@ -39,6 +39,9 @@ ITEMS = [(l, l.upper()) for l in LETTERS] + [(p[0], p[1]) for p in PAIRS]
 # Polish letters need no keys of their own. Its shifted half is unused.
 DK, DK_UP = "ℙ", "ℙ⇧"
 LATIN = list("abcdefghijklmnopqrstuvwxyz")
+# Space on a finger key in the grid instead of the thumb (--space grid): a
+# whole key on the base layer, its shifted half unused.
+SPACE_UP = "␣⇧"
 
 
 def load(n):
@@ -51,12 +54,16 @@ def load(n):
 
 
 class Problem:
-    def __init__(self, P, polish="oneshot"):
+    def __init__(self, P, polish="oneshot", space="thumb"):
         """polish: "oneshot" (Polish letters = one-shot key + Latin letter) or
         "layer" (Polish letters on their own keys, preferably under their
         Latin letters on layer 2)."""
         self.P = P
         self.mode = polish
+        fixed = dict(FIXED)
+        if space == "grid":
+            del fixed[" "]
+        self.fixed = fixed
         self.S = Slots(P)
         uni, bi = load(1), load(2)
         if polish == "oneshot":
@@ -66,6 +73,9 @@ class Problem:
         else:
             self.items = ITEMS
             self.base_only = BASE_ONLY
+        if space == "grid":
+            self.items = self.items + [(" ", SPACE_UP)]
+            self.base_only = self.base_only | {" "}
         pinned = {ch for d in PINNED_POS.values() for ch in d.values()}
         n_cells = len(GRID) * 2 - 2 * len(PINNED_POS)
         # loose symbols: one per free key, unshifted half only (unrelated
@@ -80,7 +90,7 @@ class Problem:
         # units: whole-key items (letters and symbol pairs: lower halves, then
         # upper halves), loose symbols, pinned, fixed, pseudo
         self.units = ([lo for lo, _ in self.items] + [up for _, up in self.items] + syms
-                      + sorted(pinned) + list(FIXED) + PSEUDO)
+                      + sorted(pinned) + list(fixed) + PSEUDO)
         self.uidx = {u: i for i, u in enumerate(self.units)}
 
         def unit(ch):
@@ -108,7 +118,7 @@ class Problem:
                 self.F[a, b] += v
         # fixed slots
         self.fixed_slot = {}
-        for ch, pos in FIXED.items():
+        for ch, pos in fixed.items():
             self.fixed_slot[self.uidx[ch]] = self.S.index[(pos, 0, 0)]
         for p in PSEUDO:
             self.fixed_slot[self.uidx[p]] = self.S.index[(p, 0, 0)]
@@ -143,7 +153,7 @@ class Problem:
         used_pos = set()
         for lo_ch, up_ch in items:
             pool = base if lo_ch in self.base_only else cells
-            if lo_ch in LETTERS:
+            if lo_ch in LETTERS or lo_ch == " ":
                 pool = [c for c in pool if c[0] not in NO_LETTER_POS]
             if lo_ch in distinct:
                 pool = [c for c in pool if c[0] not in used_pos]
@@ -201,7 +211,7 @@ class Problem:
                             np.array(self.distinct, dtype=np.int64),
                             np.array([p in NO_LETTER_POS for p, _, _ in S.slots]),
                             np.array([u in LETTERS or u.lower() in LETTERS and u.isupper()
-                                      for u in self.units]),
+                                      or u in (" ", SPACE_UP) for u in self.units]),
                             slot_pos, slot_layer, pl, pl_w, n_slots)
         return self._arrays
 
@@ -231,8 +241,9 @@ class Problem:
                     pos = f"r{r}c{c}"
                     lo = lay.get((pos, layer, 0), "·")
                     up = lay.get((pos, layer, 1), "·")
-                    if (lo.isalpha() and up == lo.upper()) or up == DK_UP:
+                    if (lo.isalpha() and up == lo.upper()) or up in (DK_UP, SPACE_UP):
                         up = " "
+                    lo = "␣" if lo == " " else lo
                     top.append(f"{up:^4}")
                     bot.append(f"{lo:^4}")
                 lines.append("  " + "".join(top))
@@ -360,8 +371,8 @@ def _anneal(slot_of, steps, t0, t1, seed, F, C, nb_ptr, nb_v, nb_out, nb_in, cel
     return best, bs
 
 
-def run(P, restarts, steps, seed=0):
-    prob = Problem(P)
+def run(P, restarts, steps, seed=0, space="thumb"):
+    prob = Problem(P, space=space)
     results = []
     for i in range(restarts):
         rng = random.Random(seed + i)
@@ -377,6 +388,8 @@ def main():
     ap.add_argument("--set", nargs="*", default=[])
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--params", help="JSON from optimizer/fit.py (fitted parameters)")
+    ap.add_argument("--space", choices=("thumb", "grid"), default="thumb",
+                    help="Space on the thumb (t4) or on a finger key in the grid")
     a = ap.parse_args()
     P = dict(PARAMS)
     if a.params:
@@ -386,7 +399,7 @@ def main():
         k, v = kv.split("=")
         assert k in P, k
         P[k] = float(v)
-    prob, res = run(P, a.restarts, a.steps, a.seed)
+    prob, res = run(P, a.restarts, a.steps, a.seed, a.space)
     print("symbols placed:", "".join(prob.symbols))
     for slot_of, s in res:
         print(f"score {s:.2f} ms/char")

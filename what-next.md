@@ -59,7 +59,12 @@ sweep. Details and results: [docs/optimizer.md](docs/optimizer.md).
    [docs/measurement-plan.md](docs/measurement-plan.md) (Focus measurements).
    Later round: middle-ring and ring-up-pinky-down scissors (the user
    finds them straining; the sweep says layouts avoid them anyway).
-2. **Review the layout with the user**, pin what feels wrong, then type
+   Added after the first typing test: `focus-8` (index-ring scissors),
+   `focus-9` (middle-pinky), `focus-10` (pinky reach).
+2. **Typing test** (`measure.py type --layout NAME`, text
+   `data/typing-test.txt`, 236 chars since the first run took 17 min):
+   first run on the 2026-11-21 one-shot layout, layers 3-5.
+3. **Review the layout with the user**, pin what feels wrong, then type
    on it and fit costs from the keylogs (option 4: everyday typing as
    measurement, keylogs of practised movements, median per bigram).
 
@@ -67,6 +72,10 @@ sweep. Details and results: [docs/optimizer.md](docs/optimizer.md).
 
 - When did dictation start for notes? The cut is 2026-07-01, from note
   lengths.
-- Space in the grid instead of on the thumb: not modelled yet.
+- Space in the grid: `anneal.py --space grid` (2026-11-21): 260 vs 235
+  ms/char with Space on the thumb (t4); Space lands on middle home. The
+  user finds t4 hard to reach and wants Ctrl, Shift and the layer key on
+  t1-t3; Space on t4 is not acceptable. Open: Space on t3 with
+  something on a dual-use key, or in the grid.
 - Polish letters: the preference "under its Latin letter" is weak in the
   model (`polish_off`); layouts place them freely.

@@ -318,3 +318,21 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
     6-7 the current two-layer layout (former 4-5); the measurement layer,
     the number pad and the all-letters experiment are gone. measure.py
     identifies keys by key code, so it works on layer 6 as it did on 4.
+- **2026-11-21, first typing test** on the one-shot layout: flows much
+  better than the earlier attempts, few straining moves. Issues for the
+  next iteration:
+  - Scissors with a finger skipped strain: `n o` (ring top, index bottom)
+    about 4 of 5, middle-pinky too. Model: `sc_far` *(guess, 100 per
+    row)*; measured by `focus-8`, `focus-9`.
+  - The pinky top key needs the hand to move up, about as far as c6 top:
+    `e_pinky_top` 25 → 35 *(guess)*; `focus-10`.
+  - The number-row c6 key is pressed with the ring finger (the pinky
+    doesn't reach it): `model.FINGER_POS`.
+  - The one-shot Polish key on the number row (c5) works but is in a bad
+    spot. One-shot layers look promising for more than Polish letters;
+    finish `focus-7` to get their cost first.
+  - `w y` both on layer 2 and typed with the layer key held through both:
+    good, keep such pairs.
+  - Thumbs: the outermost thumb key (t4, Space so far) is hard to reach.
+    Ctrl, Shift and the layer key should be on the inner three; Space on
+    t4 is not acceptable either.

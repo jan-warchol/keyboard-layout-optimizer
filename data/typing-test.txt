@@ -1,6 +1,2 @@
-Wczoraj wieczorem przejrzałem notatki z pomiarów i wygląda na to, że palec środkowy pracuje za mało. Jutro spróbuję pisać na nowym układzie przez pół godziny, a potem porównam wyniki z poprzednim tygodniem.
-Trzeba też kupić chleb, mleko i coś do obiadu; może zrobię zupę pomidorową?
-Please check whether the layer switch still costs more than a same-finger bigram, and update the notes if it does.
-Fix off-by-one error in cycle times (closes #12).
-git commit -m "add test text" && git push origin optimizer
-uv run optimizer/anneal.py --params optimizer/fitted.json | less
+Wczoraj przejrzałem notatki z pomiarów i wygląda na to, że palec środkowy pracuje za mało. Jutro spróbuję pisać na nowym układzie - może pójdzie szybciej.
+Please check whether the layer switch still costs more than a same-finger bigram.
