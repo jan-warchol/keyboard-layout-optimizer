@@ -22,9 +22,9 @@ SCISSOR = {("index", "middle"): "sc_index_up", ("middle", "index"): "sc_middle_u
            ("middle", "ring"): "sc_middle_up_r", ("ring", "middle"): "sc_ring_up_m",
            ("ring", "pinky"): "sc_ring_up_p", ("pinky", "ring"): "sc_pinky_up"}
 
-# Grid positions the optimizer fills (r3c6 is pinned to / and \).
+# Grid positions the optimizer fills (r3c6 is pinned to /? and \|).
 GRID = [f"r{r}c{c}" for r in range(4) for c in range(1, 7)]
-PINNED_POS = {"r3c6": {(0, 0): "/", (1, 0): "\\"}}
+PINNED_POS = {"r3c6": {(0, 0): "/", (0, 1): "?", (1, 0): "\\", (1, 1): "|"}}
 # Fixed keys outside the grid: char -> position. Tab position is a guess.
 FIXED = {" ": "t4", "\n": "r1c0", "⇥": "r0c0"}
 # Pseudo-positions: digits on the palm layer, rare symbols somewhere costly.
@@ -60,7 +60,10 @@ PARAMS = {
     "e_top": 8, "e_bottom": 8, "e_pinky_top": 25, "e_pinky_bottom": 12,
     "e_col1_home": 12, "e_col1_top": 25, "e_col1_bottom": 15,
     "e_col6_home": 25, "e_col6_top": 35,
-    "e_num_middle": 45, "e_num_col6": 50, "e_num_other": 80, "e_col0": 20,
+    "e_num_middle": 45, "e_num_other": 80, "e_col0": 20,
+    # number row, index (c1, c2) and outer (c6) keys: worse than a layer
+    # switch, for infrequent symbols only (user, 2026-11-21) *(guess)*
+    "e_num_index": 500, "e_num_col6": 500,
     # thumb (phase 1: finger→Space nearly simultaneous, Space→finger ~130)
     "to_space": 60, "from_space": 120, "space_finger_step": 20,
     # Space next to a top-row key: the thumb down and a finger up stretch
@@ -88,7 +91,8 @@ def effort(pos, P):
     if c == 0:
         return P["e_col0"]
     if r == 0:
-        return P["e_num_middle"] if c == 3 else P["e_num_col6"] if c == 6 else P["e_num_other"]
+        return (P["e_num_middle"] if c == 3 else P["e_num_col6"] if c == 6
+                else P["e_num_index"] if c in (1, 2) else P["e_num_other"])
     if c == 1:
         return P[("e_col1_top", "e_col1_home", "e_col1_bottom")[r - 1]]
     if c == 6:

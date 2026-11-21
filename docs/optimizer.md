@@ -222,3 +222,21 @@ Findings and problems of the first fitted layouts:
   order of the two keys, the fit takes the median.
 - The layer cost is from Shift held and unpractised; one-shot (`focus-7`)
   may be much cheaper.
+
+### Review with the user (2026-11-21 night) and changes
+
+- **Symbols as key-code pairs:** Shift gives the US partner, so a symbol
+  pair fills a whole key like a letter (`-_ .> ,< '" ;: =+ `~ ]} [{`, and
+  `()` as a CharShift pair); `/?` and `\|` pinned at r3c6. No separate
+  keys for shifted symbols (user). The 46 free keys hold 35 letters, 10
+  pairs and one key of loose symbols (`@ *`); rarer symbols are "other".
+- **Number row:** index keys (c1, c2) and the outer key (c6) cost 500
+  *(guess)*, more than a layer switch: the user prefers layer 2 to them,
+  infrequent symbols only. No letter on r0c6.
+- `fitted.json` holds only the fitted values (it used to override model.py).
+- Open, from the review: `.` and `-` placement unacceptable so far (now
+  `.` `,` on number-row c4/c5, whose cost of 80 is a guess; `-` on layer
+  2); `)` placement; brackets now on layer 2 c6/c2. Vowels on the index
+  are fine by the user (interleaving). Pinky load (24%): test in
+  practice. Middle finger: more load welcome, but then the index-middle
+  scissors and lateral stretches matter more.

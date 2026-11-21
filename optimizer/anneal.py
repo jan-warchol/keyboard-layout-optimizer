@@ -24,9 +24,15 @@ POLISH = dict(zip("ąćęłńóśźż", "acelnoszx"))
 LETTERS = list("abcdefghijklmnopqrstuvwxyz") + list(POLISH)
 BASE_ONLY = {"z"}          # pinned to the base layer (design-principles.md)
 # Number-row keys too awkward for letters (design-principles.md, base layer):
-# only the middle-finger key (c3) and the outer key (c6) take letters.
-NO_LETTER_POS = {"r0c1", "r0c2", "r0c4", "r0c5"}
-N_SYMBOL_HALVES = None     # computed: free halves after letters
+# only the middle-finger key (c3) takes letters (c6 excluded by the user,
+# 2026-11-21).
+NO_LETTER_POS = {"r0c1", "r0c2", "r0c4", "r0c5", "r0c6"}
+# Symbols come as key-code pairs: Shift gives the US partner (a key sends a
+# key code; other pairings need the CharShift plugin). Each pair fills a
+# whole key, like a letter and its capital. () is a CharShift pair: both
+# are shifted-only in US. /? and \| are pinned (model.PINNED_POS).
+PAIRS = ["-_", ".>", ",<", "'\"", ";:", "=+", "`~", "]}", "[{", "()"]
+ITEMS = [(l, l.upper()) for l in LETTERS] + [(p[0], p[1]) for p in PAIRS]
 
 
 def load(n):
@@ -45,14 +51,18 @@ class Problem:
         uni, bi = load(1), load(2)
         pinned = {ch for d in PINNED_POS.values() for ch in d.values()}
         n_cells = len(GRID) * 2 - 2 * len(PINNED_POS)
-        free_halves = 2 * (n_cells - len(LETTERS)) + len(PINNED_POS) * 2
+        free_halves = (2 * (n_cells - len(ITEMS))
+                       + sum(4 - len(d) for d in PINNED_POS.values()))
+        in_items = {c for it in ITEMS for c in it}
+        # loose symbols: one per free half-key, by frequency
         syms = [c for c, _ in sorted(uni.items(), key=lambda x: -x[1])
                 if not c.isalnum() and c not in FIXED and c not in pinned and c.isprintable()
-                and len(c) == 1 and c not in "⎘"][:free_halves]
+                and len(c) == 1 and c not in "⎘" and c not in in_items][:free_halves]
         self.symbols = syms
-        # units: one per character we place or pin, plus pseudo units
-        self.units = (LETTERS + [c.upper() for c in LETTERS] + syms + sorted(pinned)
-                      + list(FIXED) + PSEUDO)
+        # units: whole-key items (letters and symbol pairs: lower halves, then
+        # upper halves), loose symbols, pinned, fixed, pseudo
+        self.units = ([lo for lo, _ in ITEMS] + [up for _, up in ITEMS] + syms
+                      + sorted(pinned) + list(FIXED) + PSEUDO)
         self.uidx = {u: i for i, u in enumerate(self.units)}
 
         def unit(ch):
@@ -91,14 +101,16 @@ class Problem:
         rng.shuffle(cells)
         base = [c for c in cells if c[1] == 0]
         used = set()
-        letters = sorted(LETTERS, key=lambda l: l not in BASE_ONLY)
-        for l in letters:
-            pool = [c for c in (base if l in BASE_ONLY else cells) if c[0] not in NO_LETTER_POS]
+        items = sorted(ITEMS, key=lambda it: (it[0] not in BASE_ONLY, it[0] not in LETTERS))
+        for lo_ch, up_ch in items:
+            pool = base if lo_ch in BASE_ONLY else cells
+            if lo_ch in LETTERS:
+                pool = [c for c in pool if c[0] not in NO_LETTER_POS]
             c = next(c for c in pool if c not in used)
             used.add(c)
             lo, up = self.S.cell(*c)
-            slot_of[self.uidx[l]], slot_of[self.uidx[l.upper()]] = lo, up
-        occupied = {slot_of[self.uidx[x]] for x in LETTERS + [l.upper() for l in LETTERS]}
+            slot_of[self.uidx[lo_ch]], slot_of[self.uidx[up_ch]] = lo, up
+        occupied = {slot_of[self.uidx[x]] for it in ITEMS for x in it}
         halves = [h for h in self.sym_halves if h not in occupied]
         rng.shuffle(halves)
         for sym, h in zip(self.symbols, halves):
@@ -141,9 +153,11 @@ class Problem:
             self._arrays = (np.ascontiguousarray(F), np.ascontiguousarray(S.C),
                             np.array(nb_ptr), np.array(nb_v, dtype=np.int64),
                             np.array(nb_out), np.array(nb_in),
-                            cell_slots, np.array(self.sym_halves), 2 * len(LETTERS),
+                            cell_slots, np.array(self.sym_halves), 2 * len(ITEMS),
                             np.array([self.uidx[z] for z in BASE_ONLY]),
                             np.array([p in NO_LETTER_POS for p, _, _ in S.slots]),
+                            np.array([u in LETTERS or u.lower() in LETTERS and u.isupper()
+                                      for u in self.units]),
                             slot_pos, slot_layer, pl, pl_w, n_slots)
         return self._arrays
 
@@ -211,7 +225,7 @@ def _part(U, nu, slot_of, F, C, nb_ptr, nb_v, nb_out, nb_in):
 
 @njit(cache=True)
 def _anneal(slot_of, steps, t0, t1, seed, F, C, nb_ptr, nb_v, nb_out, nb_in, cell_slots, sym_halves, n_letter_units,
-            base_only, no_letter, slot_pos, slot_layer, pl, pl_w, n_slots):
+            base_only, no_letter, is_letter, slot_pos, slot_layer, pl, pl_w, n_slots):
     """Compiled annealing loop with incremental scoring. Moves as before:
     60 % swap two letter cells (both halves), else swap two symbol halves
     (neither may hold a letter, not both empty)."""
@@ -274,7 +288,7 @@ def _anneal(slot_of, steps, t0, t1, seed, F, C, nb_ptr, nb_v, nb_out, nb_in, cel
             if slot_layer[slot_of[z]] != 0:
                 ok = False
         for k in range(nu):
-            if U[k] < n_letter_units and no_letter[slot_of[U[k]]]:
+            if is_letter[U[k]] and no_letter[slot_of[U[k]]]:
                 ok = False
         d = 0.0
         if ok:

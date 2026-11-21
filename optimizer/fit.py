@@ -156,7 +156,8 @@ def main():
     for name, old, new, n, note in rows:
         print(f"{name:16}{old:8g}{new:9.1f}{n:7d}   {note}")
     with open(a.out, "w") as f:
-        json.dump({"k": a.k, "params": P}, f, indent=1)
+        # only the fitted and derived values: the rest stays with model.py
+        json.dump({"k": a.k, "params": {name: P[name] for name, *_ in rows}}, f, indent=1)
     print(f"\n-> {os.path.relpath(a.out)}")
 
 
