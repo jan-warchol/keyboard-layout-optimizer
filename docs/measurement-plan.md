@@ -61,6 +61,25 @@ Round notes:
   and the pair `n r` (always 1): the 2 belongs to the outward direction
   followed by Space, not to the pair.
 - `focus-3` round 1: stopped after 4 trials (layer patterns, see above).
+- `focus-3`, `focus-4` round 1 (2026-11-21 evening). Session speed is now
+  taken from the controls (the focus sessions share few patterns).
+  - Index same-finger `a b Spc` vs the index-middle pattern on the same
+    rows: +7 to +194 ms per cycle (median ~+100), rated 1-2 (`u n Spc` 3).
+    The model's +55 per same-finger transition is low, but each cycle
+    also has the index travelling back during Space.
+  - **Layer with Space: +250-600 ms per cycle**, yet rated 1-2. Shift held
+    for both letters costs *less* than for one (+100-400): in all three
+    variants the thumb makes one Space → Shift → Space round trip, and
+    holding across both letters gives it the most time. So these numbers
+    are mostly the thumb shuttling between the layer key and Space, not
+    the switch itself (the user's point). The model has no such term: a
+    layer-2 letter next to Space costs only `layer` (60). `focus-5`
+    measures the switch without Space; the difference will give a new
+    parameter for a layer-2 letter next to Space (common in Polish: word-
+    final `ę`, `ą`, word-initial `ż`).
+  - The user holds Shift across two consecutive layered letters (one
+    press per cycle, confirmed in the logs), as the model assumes
+    (`layer` for entering, `layer_cont` for each further letter).
 - `focus-2` round 1 (2026-11-21 evening, 15 min after focus-1; controls
   ~7% faster than in focus-1). Lateral stretch vs the same pattern with
   the index in column 2, session-corrected through the shared home-row

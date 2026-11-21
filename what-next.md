@@ -51,7 +51,7 @@ sweep. Details and results: [docs/optimizer.md](docs/optimizer.md).
 1. **Run the focus measurements** (the user): `python3 measure/measure.py
    run --plan focus-1` … `focus-6` (12-20 patterns each, ~5 min *(guess)*;
    pause keystats first), each three times on different days. Done so
-   far: focus-1 and focus-2 round 1; focus-3 round 1 partly (4 trials). Then `python3 analysis/measurements.py
+   far: focus-1 to focus-4 round 1. Then `python3 analysis/measurements.py
    focus`, and set the model parameters from it: scissors per direction,
    `lateral`, `space_top`, `sf_index`, `layer`/`layer_cont` (layer = "Sft held" stand-in). Re-run
    the sweep with the new values. Design in

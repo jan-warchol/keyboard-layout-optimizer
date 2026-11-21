@@ -46,6 +46,17 @@ def cycle_times(ts):
     return ct
 
 
+def cycle_times_all(ts):
+    """canonical pattern -> {session: median cycle time}, several trials per
+    session allowed (controls run at start and end)."""
+    by = collections.defaultdict(lambda: collections.defaultdict(list))
+    for t in ts:
+        c = cycle_time(t)
+        if c:
+            by[canonical(t["pattern"])][t["session"]].append(c)
+    return {p: {s: st.median(v) for s, v in d.items()} for p, d in by.items()}
+
+
 def session_factors(ct, plan):
     """Geometric-mean ratio of each session's times to the patterns' means."""
     pm = {p: math.exp(st.mean(math.log(v) for v in ct[p].values())) for p in plan if ct[p]}
@@ -230,8 +241,13 @@ def focus():
     for t in ts:
         ratings[canonical(t["pattern"])].append(t["rating"])
     sessions = sorted({t["session"] for t in ts})
-    sf = session_factors(ct, plan) if len(sessions) > 1 else {s: 1.0 for s in sessions}
-    print(f"{len(ts)} trials, {len(sessions)} sessions; session factors: "
+    # session speed from the controls (start and end of every session): the
+    # focus sessions share few or no patterns with each other
+    cts = [t for t in trials(control=True) if t["session"] in sessions]
+    cc = cycle_times_all(cts)
+    sf = session_factors(cc, list(cc))
+    sf = {s: sf.get(s, 1.0) for s in sessions}
+    print(f"{len(ts)} trials, {len(sessions)} sessions; session factors (controls): "
           + ", ".join(f"{s[5:16]} {f:.2f}" for s, f in sf.items()))
 
     def get(*pattern):
