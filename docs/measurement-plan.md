@@ -72,7 +72,14 @@ Round notes:
     variants the thumb makes one Space → Shift → Space round trip, and
     holding across both letters gives it the most time. So these numbers
     are mostly the thumb shuttling between the layer key and Space, not
-    the switch itself (the user's point). The model has no such term: a
+    the switch itself (the user's point). Corrected by the user: with one
+    layered letter the thumb has three states to time against the
+    fingers (Shift down, Shift up before the next letter, Space); with
+    both layered it is one gesture (press and hold Shift, two letters,
+    Space, the release barely needs thinking about). So the cost is
+    largely *coordinating the release*, not only thumb travel. The
+    errors (6-10 restarts of the first run) came from this; the patterns
+    themselves felt mostly comfortable, hence ratings 1-2. The model has no such term: a
     layer-2 letter next to Space costs only `layer` (60). `focus-5`
     measures the switch without Space; the difference will give a new
     parameter for a layer-2 letter next to Space (common in Polish: word-
