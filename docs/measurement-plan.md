@@ -29,11 +29,12 @@ references it needs, `measure.py run --plan focus-N`:
 | `focus-5` | `layer-fingers` (16): `n r l` both orders, no Space, layer held for none / one / two / all letters |
 | `focus-6` | `space-row` (12): index-middle + Space vs index-middle-ring, top / home / bottom row |
 | `focus-7` | `oneshot` (18): the `layer` pairs with Sft *tapped* before the first, the second or each letter |
-| `focus-8` | `scissors-far` (20): index-ring (c2, c4) and middle-pinky (c3, c5), top-home and top-bottom in both directions, both orders, + Space, + home-home references (bottom-home assumed like top-home, to keep it to one session) |
-| `focus-9` | `pinky-reach` (16): index or middle at home with pinky home / top / c6 home / c6 top, both orders, + Space |
-| `focus-10` | `spread-ip` (12): index c1 with pinky c5, home / bottom rows, both orders, + Space, vs index in c2 |
+| `focus-8` | `scissors-far` index-ring (14): c2 with c4, top-home, home-bottom and top-bottom in both directions, both orders, + Space, + home-home reference |
+| `focus-9` | `scissors-far` middle-pinky (14): c3 with c5, the same |
+| `focus-10` | `pinky-reach` (16): index or middle at home with pinky home / top / c6 home / c6 top, both orders, + Space |
+| `focus-11` | `spread-ip` (12): index c1 with pinky c5, home / bottom rows, both orders, + Space, vs index in c2 |
 
-`focus-8` and `focus-9` (added after the first typing test, 2026-11-21):
+`focus-8` to `focus-11` (added after the first typing test, 2026-11-21):
 the user found `n o` (ring top, index bottom) straining, about 4 of 5,
 and middle-pinky scissors too; the pinky top key needs the hand to move
 up, about as far as c6 top. The model now has `sc_far` and a higher

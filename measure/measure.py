@@ -31,8 +31,8 @@ focused (terminal focus reporting).
       scissors: adjacent fingers in all row combinations, each followed by
                Space ("l h Spc", both orders): row-change and scissor costs
       scissors-im: the index-middle part of scissors (18 patterns)
-      scissors-far: index-ring and middle-pinky (a finger skipped), top-home
-               and full scissors, both directions and orders (20)
+      scissors-far: index-ring and middle-pinky (a finger skipped), all
+               row pairs but top-top and bottom-bottom, both orders (28)
       pinky-reach: pinky top and column-6 keys vs pinky home (16)
       spread-ip: index stretch column (c1) with the pinky, home and bottom
                rows, vs index in c2 (12)
@@ -46,7 +46,7 @@ focused (terminal focus reporting).
                before the layered letter: the same pairs as layer (18)
       space-row: same-row finger triples with and without Space, top /
                home / bottom row: the hand stretch of Space + top row (12)
-      focus-1..focus-10: the above split into sessions of <= 20
+      focus-1..focus-11: the above split into sessions of <= 20
                patterns, each with its references (see FOCUS_SPLIT)
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
@@ -309,16 +309,17 @@ def scissors_plan(cols=(2, 3, 4), gap=1):
     return [canonical(p) for p in pats]
 
 
-def scissors_far_plan():
+def scissors_far_plan(cols=(2, 3)):
     """Scissors with a finger skipped: index-ring (c2, c4) and middle-pinky
     (c3, c5). The user, typing the first test layout: 'n o' (ring top, index
-    bottom) strains, about 4 of 5; middle-pinky too. Reduced to one session
-    (user): per pair the top-home scissors in both directions and the full
-    scissors in both directions, both orders, + the home-home reference:
-    20 patterns. Bottom-home is assumed like top-home *(guess)*."""
+    bottom) strains, about 4 of 5; middle-pinky too. All rows except
+    top-top and bottom-bottom (reduced, user): top-home, home-bottom and
+    top-bottom in both directions, both orders, + home-home reference:
+    14 patterns per pair. Home-bottom is kept: the user finds it generally
+    worse than top-home, sometimes much worse."""
     pats = []
-    for c in (2, 3):
-        for ra, rb in ((1, 2), (2, 1), (1, 3), (3, 1), (2, 2)):
+    for c in cols:
+        for ra, rb in ((1, 2), (2, 1), (2, 3), (3, 2), (1, 3), (3, 1), (2, 2)):
             a, b = f"r{ra}c{c}", f"r{rb}c{c + 2}"
             pats += [(a, b, "t4"), (b, a, "t4")]
     return [canonical(p) for p in pats]
@@ -457,9 +458,10 @@ FOCUS_SPLIT = {
     "focus-5": lambda: layer_fingers_plan(),                                 # 16
     "focus-6": lambda: space_row_plan(),                                     # 12
     "focus-7": lambda: oneshot_plan(),                                       # 18
-    "focus-8": lambda: scissors_far_plan(),                                  # 20
-    "focus-9": lambda: pinky_reach_plan(),                                   # 16
-    "focus-10": lambda: spread_ip_plan(),                                    # 12
+    "focus-8": lambda: scissors_far_plan(cols=(2,)),                         # 14
+    "focus-9": lambda: scissors_far_plan(cols=(3,)),                         # 14
+    "focus-10": lambda: pinky_reach_plan(),                                  # 16
+    "focus-11": lambda: spread_ip_plan(),                                    # 12
 }
 
 

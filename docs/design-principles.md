@@ -323,9 +323,9 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   next iteration:
   - Scissors with a finger skipped strain: `n o` (ring top, index bottom)
     about 4 of 5, middle-pinky too. Model: `sc_far` *(guess, 100 per
-    row)*; measured by `focus-8`.
+    row)*; measured by `focus-8`, `focus-9`.
   - The pinky top key needs the hand to move up, about as far as c6 top:
-    `e_pinky_top` 25 → 35 *(guess)*; `focus-9`.
+    `e_pinky_top` 25 → 35 *(guess)*; `focus-10`.
   - The number-row c6 key is pressed with the ring finger (the pinky
     doesn't reach it): `model.FINGER_POS`.
   - The one-shot Polish key on the number row (c5) works but is in a bad
@@ -352,8 +352,16 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   - Index in the stretch column with the pinky: pinky bottom + index c1
     home uncomfortable, both bottom strain; pinky home + index c1 bottom
     uncomfortable, c1 home some effort. Model `spread_ip`,
-    `spread_bottom_factor` *(guess)*; plan `focus-10`.
+    `spread_bottom_factor` *(guess)*; plan `focus-11`.
   - i and e on index top and bottom (first test layout) felt more
     comfortable than both on the home row (c1 and c2). c1 efforts raised
     *(guess)*.
   - Test the one-shot layer key alone first; the dual-use Ctrl hold later.
+- **2026-11-22, scissors by row:** top-home scissors are generally less
+  problematic than home-bottom ones, sometimes slightly, sometimes much
+  (user). The model treats them alike; focus-1 data (index-middle) and
+  focus-8/9 can fit the difference.
+- **2026-11-22, modifier requirements** (user): Ctrl and Shift must work
+  with the cursor keys of the function layer; Ctrl with Backspace, Tab
+  and Return; Shift with Tab and Return. Constrains where Ctrl goes (a
+  pinky-held Ctrl next to right-hand cursor keys may not work).
