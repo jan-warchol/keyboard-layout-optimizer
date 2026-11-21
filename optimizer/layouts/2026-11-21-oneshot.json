@@ -1,0 +1,534 @@
+{
+ "description": "Round-1 fitted costs (k=50), Polish one-shot key, symbol pairs; 2026-11-21",
+ "score": 223.59590425390167,
+ "polish": "oneshot",
+ "polish_map": {
+  "ą": "a",
+  "ć": "c",
+  "ę": "e",
+  "ł": "l",
+  "ń": "n",
+  "ó": "o",
+  "ś": "s",
+  "ź": "z",
+  "ż": "x"
+ },
+ "keys": [
+  {
+   "pos": "r0c1",
+   "layer": 0,
+   "shift": 0,
+   "char": "#"
+  },
+  {
+   "pos": "r0c1",
+   "layer": 1,
+   "shift": 0,
+   "char": "%"
+  },
+  {
+   "pos": "r0c2",
+   "layer": 0,
+   "shift": 0,
+   "char": "]"
+  },
+  {
+   "pos": "r0c2",
+   "layer": 0,
+   "shift": 1,
+   "char": "}"
+  },
+  {
+   "pos": "r0c2",
+   "layer": 1,
+   "shift": 0,
+   "char": "^"
+  },
+  {
+   "pos": "r0c3",
+   "layer": 0,
+   "shift": 0,
+   "char": "k"
+  },
+  {
+   "pos": "r0c3",
+   "layer": 0,
+   "shift": 1,
+   "char": "K"
+  },
+  {
+   "pos": "r0c3",
+   "layer": 1,
+   "shift": 0,
+   "char": "="
+  },
+  {
+   "pos": "r0c3",
+   "layer": 1,
+   "shift": 1,
+   "char": "+"
+  },
+  {
+   "pos": "r0c4",
+   "layer": 0,
+   "shift": 0,
+   "char": ","
+  },
+  {
+   "pos": "r0c4",
+   "layer": 0,
+   "shift": 1,
+   "char": "<"
+  },
+  {
+   "pos": "r0c4",
+   "layer": 1,
+   "shift": 0,
+   "char": "!"
+  },
+  {
+   "pos": "r0c5",
+   "layer": 0,
+   "shift": 0,
+   "char": "ℙ"
+  },
+  {
+   "pos": "r0c5",
+   "layer": 0,
+   "shift": 1,
+   "char": "ℙ⇧"
+  },
+  {
+   "pos": "r0c5",
+   "layer": 1,
+   "shift": 0,
+   "char": ")"
+  },
+  {
+   "pos": "r0c6",
+   "layer": 0,
+   "shift": 0,
+   "char": "*"
+  },
+  {
+   "pos": "r0c6",
+   "layer": 1,
+   "shift": 0,
+   "char": "&"
+  },
+  {
+   "pos": "r1c1",
+   "layer": 0,
+   "shift": 0,
+   "char": "u"
+  },
+  {
+   "pos": "r1c1",
+   "layer": 0,
+   "shift": 1,
+   "char": "U"
+  },
+  {
+   "pos": "r1c1",
+   "layer": 1,
+   "shift": 0,
+   "char": "@"
+  },
+  {
+   "pos": "r1c2",
+   "layer": 0,
+   "shift": 0,
+   "char": "i"
+  },
+  {
+   "pos": "r1c2",
+   "layer": 0,
+   "shift": 1,
+   "char": "I"
+  },
+  {
+   "pos": "r1c2",
+   "layer": 1,
+   "shift": 0,
+   "char": "'"
+  },
+  {
+   "pos": "r1c2",
+   "layer": 1,
+   "shift": 1,
+   "char": "\""
+  },
+  {
+   "pos": "r1c3",
+   "layer": 0,
+   "shift": 0,
+   "char": "t"
+  },
+  {
+   "pos": "r1c3",
+   "layer": 0,
+   "shift": 1,
+   "char": "T"
+  },
+  {
+   "pos": "r1c3",
+   "layer": 1,
+   "shift": 0,
+   "char": "x"
+  },
+  {
+   "pos": "r1c3",
+   "layer": 1,
+   "shift": 1,
+   "char": "X"
+  },
+  {
+   "pos": "r1c4",
+   "layer": 0,
+   "shift": 0,
+   "char": "n"
+  },
+  {
+   "pos": "r1c4",
+   "layer": 0,
+   "shift": 1,
+   "char": "N"
+  },
+  {
+   "pos": "r1c4",
+   "layer": 1,
+   "shift": 0,
+   "char": "q"
+  },
+  {
+   "pos": "r1c4",
+   "layer": 1,
+   "shift": 1,
+   "char": "Q"
+  },
+  {
+   "pos": "r1c5",
+   "layer": 0,
+   "shift": 0,
+   "char": "s"
+  },
+  {
+   "pos": "r1c5",
+   "layer": 0,
+   "shift": 1,
+   "char": "S"
+  },
+  {
+   "pos": "r1c5",
+   "layer": 1,
+   "shift": 0,
+   "char": "v"
+  },
+  {
+   "pos": "r1c5",
+   "layer": 1,
+   "shift": 1,
+   "char": "V"
+  },
+  {
+   "pos": "r1c6",
+   "layer": 0,
+   "shift": 0,
+   "char": "m"
+  },
+  {
+   "pos": "r1c6",
+   "layer": 0,
+   "shift": 1,
+   "char": "M"
+  },
+  {
+   "pos": "r1c6",
+   "layer": 1,
+   "shift": 0,
+   "char": "`"
+  },
+  {
+   "pos": "r1c6",
+   "layer": 1,
+   "shift": 1,
+   "char": "~"
+  },
+  {
+   "pos": "r2c1",
+   "layer": 0,
+   "shift": 0,
+   "char": "p"
+  },
+  {
+   "pos": "r2c1",
+   "layer": 0,
+   "shift": 1,
+   "char": "P"
+  },
+  {
+   "pos": "r2c1",
+   "layer": 1,
+   "shift": 0,
+   "char": "."
+  },
+  {
+   "pos": "r2c1",
+   "layer": 1,
+   "shift": 1,
+   "char": ">"
+  },
+  {
+   "pos": "r2c2",
+   "layer": 0,
+   "shift": 0,
+   "char": "a"
+  },
+  {
+   "pos": "r2c2",
+   "layer": 0,
+   "shift": 1,
+   "char": "A"
+  },
+  {
+   "pos": "r2c2",
+   "layer": 1,
+   "shift": 0,
+   "char": "y"
+  },
+  {
+   "pos": "r2c2",
+   "layer": 1,
+   "shift": 1,
+   "char": "Y"
+  },
+  {
+   "pos": "r2c3",
+   "layer": 0,
+   "shift": 0,
+   "char": "z"
+  },
+  {
+   "pos": "r2c3",
+   "layer": 0,
+   "shift": 1,
+   "char": "Z"
+  },
+  {
+   "pos": "r2c3",
+   "layer": 1,
+   "shift": 0,
+   "char": "("
+  },
+  {
+   "pos": "r2c4",
+   "layer": 0,
+   "shift": 0,
+   "char": "d"
+  },
+  {
+   "pos": "r2c4",
+   "layer": 0,
+   "shift": 1,
+   "char": "D"
+  },
+  {
+   "pos": "r2c4",
+   "layer": 1,
+   "shift": 0,
+   "char": "f"
+  },
+  {
+   "pos": "r2c4",
+   "layer": 1,
+   "shift": 1,
+   "char": "F"
+  },
+  {
+   "pos": "r2c5",
+   "layer": 0,
+   "shift": 0,
+   "char": "c"
+  },
+  {
+   "pos": "r2c5",
+   "layer": 0,
+   "shift": 1,
+   "char": "C"
+  },
+  {
+   "pos": "r2c5",
+   "layer": 1,
+   "shift": 0,
+   "char": "w"
+  },
+  {
+   "pos": "r2c5",
+   "layer": 1,
+   "shift": 1,
+   "char": "W"
+  },
+  {
+   "pos": "r2c6",
+   "layer": 0,
+   "shift": 0,
+   "char": "l"
+  },
+  {
+   "pos": "r2c6",
+   "layer": 0,
+   "shift": 1,
+   "char": "L"
+  },
+  {
+   "pos": "r2c6",
+   "layer": 1,
+   "shift": 0,
+   "char": "j"
+  },
+  {
+   "pos": "r2c6",
+   "layer": 1,
+   "shift": 1,
+   "char": "J"
+  },
+  {
+   "pos": "r3c1",
+   "layer": 0,
+   "shift": 0,
+   "char": "o"
+  },
+  {
+   "pos": "r3c1",
+   "layer": 0,
+   "shift": 1,
+   "char": "O"
+  },
+  {
+   "pos": "r3c1",
+   "layer": 1,
+   "shift": 0,
+   "char": ";"
+  },
+  {
+   "pos": "r3c1",
+   "layer": 1,
+   "shift": 1,
+   "char": ":"
+  },
+  {
+   "pos": "r3c2",
+   "layer": 0,
+   "shift": 0,
+   "char": "e"
+  },
+  {
+   "pos": "r3c2",
+   "layer": 0,
+   "shift": 1,
+   "char": "E"
+  },
+  {
+   "pos": "r3c2",
+   "layer": 1,
+   "shift": 0,
+   "char": "-"
+  },
+  {
+   "pos": "r3c2",
+   "layer": 1,
+   "shift": 1,
+   "char": "_"
+  },
+  {
+   "pos": "r3c3",
+   "layer": 0,
+   "shift": 0,
+   "char": "h"
+  },
+  {
+   "pos": "r3c3",
+   "layer": 0,
+   "shift": 1,
+   "char": "H"
+  },
+  {
+   "pos": "r3c3",
+   "layer": 1,
+   "shift": 0,
+   "char": "$"
+  },
+  {
+   "pos": "r3c4",
+   "layer": 0,
+   "shift": 0,
+   "char": "g"
+  },
+  {
+   "pos": "r3c4",
+   "layer": 0,
+   "shift": 1,
+   "char": "G"
+  },
+  {
+   "pos": "r3c4",
+   "layer": 1,
+   "shift": 0,
+   "char": "["
+  },
+  {
+   "pos": "r3c4",
+   "layer": 1,
+   "shift": 1,
+   "char": "{"
+  },
+  {
+   "pos": "r3c5",
+   "layer": 0,
+   "shift": 0,
+   "char": "r"
+  },
+  {
+   "pos": "r3c5",
+   "layer": 0,
+   "shift": 1,
+   "char": "R"
+  },
+  {
+   "pos": "r3c5",
+   "layer": 1,
+   "shift": 0,
+   "char": "b"
+  },
+  {
+   "pos": "r3c5",
+   "layer": 1,
+   "shift": 1,
+   "char": "B"
+  },
+  {
+   "pos": "r3c6",
+   "layer": 0,
+   "shift": 0,
+   "char": "/"
+  },
+  {
+   "pos": "r3c6",
+   "layer": 0,
+   "shift": 1,
+   "char": "?"
+  },
+  {
+   "pos": "r3c6",
+   "layer": 1,
+   "shift": 0,
+   "char": "\\"
+  },
+  {
+   "pos": "r3c6",
+   "layer": 1,
+   "shift": 1,
+   "char": "|"
+  }
+ ]
+}

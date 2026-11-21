@@ -29,10 +29,16 @@ BASE_ONLY = {"z"}          # pinned to the base layer (design-principles.md)
 NO_LETTER_POS = {"r0c1", "r0c2", "r0c4", "r0c5", "r0c6"}
 # Symbols come as key-code pairs: Shift gives the US partner (a key sends a
 # key code; other pairings need the CharShift plugin). Each pair fills a
-# whole key, like a letter and its capital. () is a CharShift pair: both
-# are shifted-only in US. /? and \| are pinned (model.PINNED_POS).
-PAIRS = ["-_", ".>", ",<", "'\"", ";:", "=+", "`~", "]}", "[{", "()"]
+# whole key, like a letter and its capital. ( and ) are shifted-only in US
+# and the firmware has no CharShift, so each takes a key of its own (loose).
+# /? and \| are pinned (model.PINNED_POS).
+PAIRS = ["-_", ".>", ",<", "'\"", ";:", "=+", "`~", "]}", "[{"]
 ITEMS = [(l, l.upper()) for l in LETTERS] + [(p[0], p[1]) for p in PAIRS]
+# Polish one-shot key (design-principles.md, 2026-11-21): tapped before a
+# Latin letter it gives the Polish letter on the same physical key, so the
+# Polish letters need no keys of their own. Its shifted half is unused.
+DK, DK_UP = "ℙ", "ℙ⇧"
+LATIN = list("abcdefghijklmnopqrstuvwxyz")
 
 
 def load(n):
@@ -45,23 +51,35 @@ def load(n):
 
 
 class Problem:
-    def __init__(self, P):
+    def __init__(self, P, polish="oneshot"):
+        """polish: "oneshot" (Polish letters = one-shot key + Latin letter) or
+        "layer" (Polish letters on their own keys, preferably under their
+        Latin letters on layer 2)."""
         self.P = P
+        self.mode = polish
         self.S = Slots(P)
         uni, bi = load(1), load(2)
+        if polish == "oneshot":
+            self.items = [(l, l.upper()) for l in LATIN] + [(p[0], p[1]) for p in PAIRS] \
+                + [(DK, DK_UP)]
+            self.base_only = BASE_ONLY | {DK}
+        else:
+            self.items = ITEMS
+            self.base_only = BASE_ONLY
         pinned = {ch for d in PINNED_POS.values() for ch in d.values()}
         n_cells = len(GRID) * 2 - 2 * len(PINNED_POS)
-        free_halves = (2 * (n_cells - len(ITEMS))
-                       + sum(4 - len(d) for d in PINNED_POS.values()))
-        in_items = {c for it in ITEMS for c in it}
-        # loose symbols: one per free half-key, by frequency
+        # loose symbols: one per free key, unshifted half only (unrelated
+        # symbols sharing a key surprised the user)
+        free = n_cells - len(self.items)
+        in_items = {c for it in self.items for c in it} | set(POLISH) \
+            | {c.upper() for c in POLISH}
         syms = [c for c, _ in sorted(uni.items(), key=lambda x: -x[1])
                 if not c.isalnum() and c not in FIXED and c not in pinned and c.isprintable()
-                and len(c) == 1 and c not in "⎘" and c not in in_items][:free_halves]
+                and len(c) == 1 and c.isascii() and c not in in_items][:free]
         self.symbols = syms
         # units: whole-key items (letters and symbol pairs: lower halves, then
         # upper halves), loose symbols, pinned, fixed, pseudo
-        self.units = ([lo for lo, _ in ITEMS] + [up for _, up in ITEMS] + syms
+        self.units = ([lo for lo, _ in self.items] + [up for _, up in self.items] + syms
                       + sorted(pinned) + list(FIXED) + PSEUDO)
         self.uidx = {u: i for i, u in enumerate(self.units)}
 
@@ -70,13 +88,24 @@ class Problem:
                 return self.uidx[ch]
             return self.uidx["palm"] if ch.isdigit() else self.uidx["other"]
 
+        def seq(ch):
+            """Units typed for a character (one-shot: Polish = DK + Latin)."""
+            if polish == "oneshot" and ch.lower() in POLISH:
+                lat = POLISH[ch.lower()]
+                return [self.uidx[DK], unit(lat.upper() if ch.isupper() else lat)]
+            return [unit(ch)]
+
         n = len(self.units)
         self.F = np.zeros((n, n))
         for k, v in bi.items():
-            self.F[unit(k[0]), unit(k[1])] += v
+            self.F[seq(k[0])[-1], seq(k[1])[0]] += v
         self.uni = np.zeros(n)
         for k, v in uni.items():
-            self.uni[unit(k)] += v
+            sq = seq(k)
+            for u in sq:
+                self.uni[u] += v
+            for a, b in zip(sq, sq[1:]):        # DK -> letter inside one character
+                self.F[a, b] += v
         # fixed slots
         self.fixed_slot = {}
         for ch, pos in FIXED.items():
@@ -87,10 +116,17 @@ class Problem:
             for (layer, shift), ch in d.items():
                 self.fixed_slot[self.uidx[ch]] = self.S.index[(pos, layer, shift)]
         self.cells = [(pos, l) for pos in GRID for l in (0, 1) if pos not in PINNED_POS]
-        self.sym_halves = ([self.S.index[(pos, l, s)] for pos, l in self.cells for s in (0, 1)]
-                           + [self.S.index[(pos, l, s)] for pos in PINNED_POS for l in (0, 1)
-                              for s in (0, 1) if (l, s) not in PINNED_POS[pos]])
-        self.pl = [(self.uidx[p], self.uidx[p.upper()], self.uidx[b]) for p, b in POLISH.items()]
+        self.sym_halves = ([self.S.index[(pos, l, 0)] for pos, l in self.cells]
+                           + [self.S.index[(pos, l, 0)] for pos in PINNED_POS for l in (0, 1)
+                              if (l, 0) not in PINNED_POS[pos]])
+        if polish == "oneshot":
+            self.pl = []
+            # Latin bases of Polish letters on distinct physical keys
+            self.distinct = [self.uidx[b] for b in POLISH.values()]
+        else:
+            self.pl = [(self.uidx[p], self.uidx[p.upper()], self.uidx[b])
+                       for p, b in POLISH.items()]
+            self.distinct = []
 
     # state: slot_of (unit -> slot), half (slot -> unit or -1)
     def random_state(self, rng):
@@ -101,16 +137,23 @@ class Problem:
         rng.shuffle(cells)
         base = [c for c in cells if c[1] == 0]
         used = set()
-        items = sorted(ITEMS, key=lambda it: (it[0] not in BASE_ONLY, it[0] not in LETTERS))
+        items = sorted(self.items, key=lambda it: (it[0] not in self.base_only,
+                                                   it[0] not in LETTERS))
+        distinct = set(POLISH.values()) if self.distinct else set()
+        used_pos = set()
         for lo_ch, up_ch in items:
-            pool = base if lo_ch in BASE_ONLY else cells
+            pool = base if lo_ch in self.base_only else cells
             if lo_ch in LETTERS:
                 pool = [c for c in pool if c[0] not in NO_LETTER_POS]
+            if lo_ch in distinct:
+                pool = [c for c in pool if c[0] not in used_pos]
             c = next(c for c in pool if c not in used)
+            if lo_ch in distinct:
+                used_pos.add(c[0])
             used.add(c)
             lo, up = self.S.cell(*c)
             slot_of[self.uidx[lo_ch]], slot_of[self.uidx[up_ch]] = lo, up
-        occupied = {slot_of[self.uidx[x]] for it in ITEMS for x in it}
+        occupied = {slot_of[self.uidx[x]] for it in self.items for x in it}
         halves = [h for h in self.sym_halves if h not in occupied]
         rng.shuffle(halves)
         for sym, h in zip(self.symbols, halves):
@@ -138,7 +181,7 @@ class Problem:
             slot_pos = np.array([pos_ids.setdefault(p, len(pos_ids)) for p, _, _ in S.slots])
             slot_layer = np.array([l for _, l, _ in S.slots])
             cell_slots = np.array([S.cell(*c) for c in self.cells])
-            pl = np.array(self.pl, dtype=np.int64)
+            pl = np.array(self.pl, dtype=np.int64).reshape(-1, 3)
             pl_w = np.array([self.P["polish_off"] * (self.uni[p] + self.uni[P_])
                              for p, P_, _ in self.pl])
             # sparse bigrams per unit: neighbours v with F[u,v] or F[v,u] > 0
@@ -153,8 +196,9 @@ class Problem:
             self._arrays = (np.ascontiguousarray(F), np.ascontiguousarray(S.C),
                             np.array(nb_ptr), np.array(nb_v, dtype=np.int64),
                             np.array(nb_out), np.array(nb_in),
-                            cell_slots, np.array(self.sym_halves), 2 * len(ITEMS),
-                            np.array([self.uidx[z] for z in BASE_ONLY]),
+                            cell_slots, np.array(self.sym_halves), 2 * len(self.items),
+                            np.array([self.uidx[z] for z in self.base_only]),
+                            np.array(self.distinct, dtype=np.int64),
                             np.array([p in NO_LETTER_POS for p, _, _ in S.slots]),
                             np.array([u in LETTERS or u.lower() in LETTERS and u.isupper()
                                       for u in self.units]),
@@ -187,7 +231,7 @@ class Problem:
                     pos = f"r{r}c{c}"
                     lo = lay.get((pos, layer, 0), "·")
                     up = lay.get((pos, layer, 1), "·")
-                    if lo.isalpha() and up == lo.upper():
+                    if (lo.isalpha() and up == lo.upper()) or up == DK_UP:
                         up = " "
                     top.append(f"{up:^4}")
                     bot.append(f"{lo:^4}")
@@ -225,7 +269,8 @@ def _part(U, nu, slot_of, F, C, nb_ptr, nb_v, nb_out, nb_in):
 
 @njit(cache=True)
 def _anneal(slot_of, steps, t0, t1, seed, F, C, nb_ptr, nb_v, nb_out, nb_in, cell_slots, sym_halves, n_letter_units,
-            base_only, no_letter, is_letter, slot_pos, slot_layer, pl, pl_w, n_slots):
+            base_only, distinct, no_letter, is_letter, slot_pos, slot_layer, pl, pl_w,
+            n_slots):
     """Compiled annealing loop with incremental scoring. Moves as before:
     60 % swap two letter cells (both halves), else swap two symbol halves
     (neither may hold a letter, not both empty)."""
@@ -290,6 +335,11 @@ def _anneal(slot_of, steps, t0, t1, seed, F, C, nb_ptr, nb_v, nb_out, nb_in, cel
         for k in range(nu):
             if is_letter[U[k]] and no_letter[slot_of[U[k]]]:
                 ok = False
+        if ok:
+            for i in range(distinct.shape[0]):
+                for j in range(i):
+                    if slot_pos[slot_of[distinct[i]]] == slot_pos[slot_of[distinct[j]]]:
+                        ok = False
         d = 0.0
         if ok:
             d = _part(U, nu, slot_of, F, C, nb_ptr, nb_v, nb_out, nb_in) + _polish(slot_of, slot_pos, slot_layer, pl, pl_w) - old

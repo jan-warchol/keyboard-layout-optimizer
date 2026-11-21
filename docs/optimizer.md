@@ -240,3 +240,23 @@ Findings and problems of the first fitted layouts:
   are fine by the user (interleaving). Pinky load (24%): test in
   practice. Middle finger: more load welcome, but then the index-middle
   scissors and lateral stretches matter more.
+
+### Polish one-shot key and first test layout (2026-11-21 night)
+
+- `Problem(P, polish="oneshot")` (now the default): a Polish letter is
+  typed as the one-shot key ℙ + its Latin letter (corpus transformed: +1.7%
+  keystrokes); ℙ is a base-layer key placed by the optimizer; the nine Latin
+  bases `a c e l n o s z x` must be on distinct physical keys (the Polish
+  layer maps one key to one letter). `polish="layer"` is the old model.
+  Score with the same costs: 223.6 vs 224.1 ms/char (layer mode): the same,
+  but 9 keys freed.
+- Loose symbols take one key each (unshifted half only): unrelated symbols
+  sharing a key surprised the user. `()` is no longer a pair: the firmware
+  has no CharShift plugin. Only ASCII symbols are placed.
+- First test layout: `optimizer/layouts/2026-11-21-oneshot.json`, written
+  into the keymap by `optimizer/export_layout.py` (layers 3 = base, 4 =
+  layer 2, 5 = Polish one-shot layer; only the right-hand grid, the rest
+  transparent): `Keyboardio-Model-100_layout_2026-11-21_optimized-test.json`.
+  Entry and layer keys are placed by the user.
+- Still open from the review: `.` and `-` on layer 2; `[` `]` split between
+  layers; pinky 25%, middle 9% (to be judged by typing).
