@@ -210,7 +210,8 @@ def warmup(plan="pilot-chain"):
                   + f"   ({(v[-1] / v[0] - 1) * 100:+.0f}%)")
 
 
-FOCUS_PLANS = {"focus", "scissors", "scissors-im", "lateral", "sf-index", "layer"}
+FOCUS_PLANS = {"scissors", "scissors-im", "lateral", "sf-index", "layer",
+               "focus-1", "focus-2", "focus-3", "focus-4"}
 ROW = {1: "top", 2: "home", 3: "bottom"}
 
 

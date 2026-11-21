@@ -32,7 +32,8 @@ focused (terminal focus reporting).
       sf-index: index same-finger bigrams followed by Space (10 patterns)
       layer:   home-row pairs + Space with the layer key held for none,
                the first, the second or both letters (24 patterns)
-      focus:   scissors-im + lateral + sf-index + layer (68 patterns)
+      focus-1..focus-4: the four above split into sessions of <= 20
+               patterns, each with its references (see FOCUS_SPLIT)
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
             e.g. "u n r" or "r1c2 r2c2 r2c3"; "Sft+r" = r with Sft held
@@ -337,6 +338,22 @@ def focus_plan():
                               + layer_plan()))
 
 
+def _layer_pairs(pairs):
+    """The layer patterns of the given unordered home-row pairs (4 per order)."""
+    keys = [set(p) for p in pairs]
+    return [p for p in layer_plan() if {key_of(e) for e in p} - {"t4"} in keys]
+
+
+HOME_IM = [canonical(("r2c2", "r2c3", "t4")), canonical(("r2c3", "r2c2", "t4"))]
+# Sessions of at most 20 patterns, each with its in-session references.
+FOCUS_SPLIT = {
+    "focus-1": lambda: scissors_im_plan(),                                   # 18
+    "focus-2": lambda: lateral_plan() + HOME_IM,                             # 20
+    "focus-3": lambda: sf_index_plan() + _layer_pairs([("r2c2", "r2c3")]),  # 18
+    "focus-4": lambda: _layer_pairs([("r2c2", "r2c4"), ("r2c3", "r2c4")]),  # 16
+}
+
+
 def space_last(pattern):
     """Rotate a cyclic pattern so Space comes last, like the end of a word."""
     p = list(pattern)
@@ -348,13 +365,16 @@ PLANS = {"phase1": phase1_plan, "phase2a": phase2a_plan, "pilot-words": pilot_wo
          "pilot-chain": pilot_chain_plan, "pilot-real": pilot_real_plan, "bigrams": bigram_plan,
          "scissors": scissors_plan, "scissors-im": scissors_im_plan, "lateral": lateral_plan,
          "sf-index": sf_index_plan,
-         "layer": layer_plan, "focus": focus_plan}
+         "layer": layer_plan, **FOCUS_SPLIT}
 # Plans run in their own order, with planned repeats inside one session.
 FIXED_ORDER = {"pilot-words", "pilot-chain", "pilot-real"}
 # Plans whose words are shown as planned, not rotated by display_order.
 AS_PLANNED = {"pilot-chain", "pilot-real"}
 # Plans whose patterns are shown with Space last.
-SPACE_LAST = {"scissors", "scissors-im", "lateral", "sf-index", "layer", "focus"}
+SPACE_LAST = {"scissors", "scissors-im", "lateral", "sf-index", "layer", *FOCUS_SPLIT}
+# Plans whose patterns count as done only from their own trials (their
+# reference patterns were measured elsewhere too, but are needed in-session).
+OWN_COUNT = set(FOCUS_SPLIT)
 
 
 def load_trials():
@@ -596,6 +616,8 @@ def cmd_run(args):
     os.makedirs(DATA, exist_ok=True)
     done = {}   # canonical pattern -> number of sessions with an ok protocol-2 trial
     for t in load_trials():
+        if args.plan in OWN_COUNT and not args.patterns and t.get("plan") != args.plan:
+            continue
         if t["status"] == "ok" and not t.get("control") and t.get("protocol", 1) >= PROTOCOL:
             c = canonical(t["pattern"])
             done[c] = done.get(c, 0) + 1

@@ -16,12 +16,23 @@ Space, both orders, 54 patterns), not run yet.
 
 The sensitivity sweep (docs/optimizer.md) found four parameters that
 move the layout: the index-middle scissors, the index lateral stretch,
-the index same-finger cost and the layer switch. `measure.py run --plan
-focus` measures all four (68 patterns, ~17 min *(guess)*, so a session may
-end before the plan does and the next one resumes; `--repeats 3`, at most
-once per pattern per session). All patterns are 3-key
+the index same-finger cost and the layer switch. They are measured in
+four sessions of at most 20 patterns (user's limit), each with the
+references it needs, `measure.py run --plan focus-N`:
+
+| Plan | Patterns |
+|---|---|
+| `focus-1` | `scissors-im` (18) |
+| `focus-2` | `lateral` (18) + home-row `n r Spc`, `r n Spc` |
+| `focus-3` | `sf-index` (10) + `layer` for `n r` (8, includes the plain pair) |
+| `focus-4` | `layer` for `n l` and `r l` (16) |
+
+Each is run 3 times on different days (`--repeats 3`). For these plans a
+pattern counts as done only from trials of the same plan, so the
+references are re-measured in-session even though phase 1 measured
+`n r Spc` before. All patterns are 3-key
 cycles `a b Spc`, the context of the phase-1 triples, shown with Space
-last. Report: `python3 analysis/measurements.py focus`.
+last. Report: `python3 analysis/measurements.py focus` (all focus plans together).
 
 Not measured yet, though the user finds them straining too: middle-ring
 scissors (both directions) and ring up + pinky down. In the sweep they
