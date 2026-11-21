@@ -40,8 +40,8 @@ def variants(only):
             continue
         if k == "sc_full_factor":
             factors = (2 / v, 4 / v, 5 / v)
-        elif k.startswith("sc_"):
-            factors = (0.5, 2, 4, 6)    # the worst may be 4x or more (user)
+        elif k.startswith("sc_") or k == "lateral":
+            factors = (0.5, 2, 4, 6)    # the worst may be 4x or more (user; lateral: 2026-11-21)
         elif k in MEASURED:
             factors = (0.75, 1.25)
         else:

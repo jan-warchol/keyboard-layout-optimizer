@@ -5,7 +5,7 @@
   python3 analysis/measurements.py warmup [PLAN]   # word pilot (default pilot-chain):
                                                    # how fast cycle time settles
   python3 analysis/measurements.py focus    # index-middle scissors, index
-                                            # same-finger, layer switch
+                                            # lateral stretch, same-finger, layer switch
 
 Everything is recomputed from the raw trials; nothing is stored. Findings
 are summarised in docs/measurement-plan.md.
@@ -210,7 +210,7 @@ def warmup(plan="pilot-chain"):
                   + f"   ({(v[-1] / v[0] - 1) * 100:+.0f}%)")
 
 
-FOCUS_PLANS = {"focus", "scissors", "scissors-im", "sf-index", "layer"}
+FOCUS_PLANS = {"focus", "scissors", "scissors-im", "lateral", "sf-index", "layer"}
 ROW = {1: "top", 2: "home", 3: "bottom"}
 
 
@@ -261,6 +261,21 @@ def focus():
             print(f"  {ROW[ri]:>8}" + "".join(f"{x:>15}" for x in out))
     print("  index up + middle down: index top row with middle home/bottom (upper right);"
           "\n  middle up + index down: lower left.")
+
+    print("\nLATERAL STRETCH: index in column 1 with middle, cycle 'a b Spc' ms,"
+          "\n  diff vs the same pattern with index in column 2 (median rating)")
+    for order in ("index first", "middle first"):
+        print(f"  {order}; rows: index, columns: middle")
+        print("  " + " " * 8 + "".join(f"{ROW[rm]:>15}" for rm in (1, 2, 3)))
+        for ri in (1, 2, 3):
+            out = []
+            for rm in (1, 2, 3):
+                m = f"r{rm}c3"
+                pat, ref = (f"r{ri}c1", m), (f"r{ri}c2", m)
+                if order == "middle first":
+                    pat, ref = pat[::-1], ref[::-1]
+                out.append(cell(get(*pat, "t4"), get(*ref, "t4")))
+            print(f"  {ROW[ri]:>8}" + "".join(f"{x:>15}" for x in out))
 
     print("\nINDEX SAME-FINGER: cycle 'a b Spc' ms (rating), diff vs the index-middle"
           "\n  pattern with the same rows ('a m Spc', index in column 2)")

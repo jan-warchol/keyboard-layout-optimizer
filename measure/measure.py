@@ -28,10 +28,11 @@ focused (terminal focus reporting).
       scissors: adjacent fingers in all row combinations, each followed by
                Space ("l h Spc", both orders): row-change and scissor costs
       scissors-im: the index-middle part of scissors (18 patterns)
+      lateral: index stretch column with the middle finger + Space (18)
       sf-index: index same-finger bigrams followed by Space (10 patterns)
       layer:   home-row pairs + Space with the layer key held for none,
                the first, the second or both letters (24 patterns)
-      focus:   scissors-im + sf-index + layer, in one session
+      focus:   scissors-im + lateral + sf-index + layer (68 patterns)
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
             e.g. "u n r" or "r1c2 r2c2 r2c3"; "Sft+r" = r with Sft held
@@ -291,6 +292,18 @@ def scissors_im_plan():
     return scissors_plan(cols=(2,))
 
 
+def lateral_plan():
+    """Index in the stretch column (1) with the middle finger (column 3), all
+    row combinations, both orders, + Space: 18 patterns. Compare with
+    scissors-im (index in column 2) for the cost of the lateral stretch
+    (QWERTY G-D on the left hand was straining)."""
+    pats = []
+    for ra, rb in itertools.product((1, 2, 3), repeat=2):
+        a, b = f"r{ra}c1", f"r{rb}c3"
+        pats += [(a, b, "t4"), (b, a, "t4")]
+    return [canonical(p) for p in pats]
+
+
 def sf_index_plan():
     """Index same-finger bigram followed by Space ('a b Spc', both orders),
     the same context as the scissors plans, whose index-middle home-row
@@ -320,7 +333,8 @@ def layer_plan():
 
 
 def focus_plan():
-    return list(dict.fromkeys(scissors_im_plan() + sf_index_plan() + layer_plan()))
+    return list(dict.fromkeys(scissors_im_plan() + lateral_plan() + sf_index_plan()
+                              + layer_plan()))
 
 
 def space_last(pattern):
@@ -332,14 +346,15 @@ def space_last(pattern):
 
 PLANS = {"phase1": phase1_plan, "phase2a": phase2a_plan, "pilot-words": pilot_words_plan,
          "pilot-chain": pilot_chain_plan, "pilot-real": pilot_real_plan, "bigrams": bigram_plan,
-         "scissors": scissors_plan, "scissors-im": scissors_im_plan, "sf-index": sf_index_plan,
+         "scissors": scissors_plan, "scissors-im": scissors_im_plan, "lateral": lateral_plan,
+         "sf-index": sf_index_plan,
          "layer": layer_plan, "focus": focus_plan}
 # Plans run in their own order, with planned repeats inside one session.
 FIXED_ORDER = {"pilot-words", "pilot-chain", "pilot-real"}
 # Plans whose words are shown as planned, not rotated by display_order.
 AS_PLANNED = {"pilot-chain", "pilot-real"}
 # Plans whose patterns are shown with Space last.
-SPACE_LAST = {"scissors", "scissors-im", "sf-index", "layer", "focus"}
+SPACE_LAST = {"scissors", "scissors-im", "lateral", "sf-index", "layer", "focus"}
 
 
 def load_trials():

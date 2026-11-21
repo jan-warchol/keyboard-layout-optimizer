@@ -170,5 +170,12 @@ be worse than the baseline, so regret ≥ 0, and best-of-8 is stable to
   | pinky top row, finger step after Space ×2 | 0.4 |
   | everything else | ≤ 0.3, mostly 0 |
 
+  **Lateral stretch** (index in column 1 next to a middle-finger press,
+  40 ms *(guess)*), swept to ×6 after the user pointed out it strained
+  the left hand (QWERTY G-D): ×2 0.0, ×4 **1.4**, ×6 **3.1**, as strong
+  as the index-up scissor. In the current layout 2.3% of bigrams use it,
+  mostly `ti`/`it` (`i` at r2c1, `t` at r2c3), then `bi hi di zi`. Added
+  to the focus measurements.
+
   Base layer unchanged from the scissor sweep: `g o d l c f` / `i a t s n
   w` / `p e z m r /`.

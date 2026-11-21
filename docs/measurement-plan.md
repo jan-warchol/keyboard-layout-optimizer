@@ -14,17 +14,27 @@ Space, both orders, 54 patterns), not run yet.
 
 ### Focus measurements (2026-11-21, not run yet)
 
-The sensitivity sweep (docs/optimizer.md) found three parameters that
-move the layout: the index-middle scissors, the index same-finger cost
-and the layer switch. `measure.py run --plan focus` measures all three in
-one session (50 patterns, ~13 min *(guess)*; `--repeats 3` = three
-sessions, at most once per pattern per session). All patterns are 3-key
+The sensitivity sweep (docs/optimizer.md) found four parameters that
+move the layout: the index-middle scissors, the index lateral stretch,
+the index same-finger cost and the layer switch. `measure.py run --plan
+focus` measures all four (68 patterns, ~17 min *(guess)*, so a session may
+end before the plan does and the next one resumes; `--repeats 3`, at most
+once per pattern per session). All patterns are 3-key
 cycles `a b Spc`, the context of the phase-1 triples, shown with Space
 last. Report: `python3 analysis/measurements.py focus`.
+
+Not measured yet, though the user finds them straining too: middle-ring
+scissors (both directions) and ring up + pinky down. In the sweep they
+matter less (regret ≤ 0.4 even at 6× the guess), because good layouts
+avoid them anyway; measure them in a later round (`--plan scissors`).
 
 - **`scissors-im`** (18): index in column 2, middle in column 3, each in
   rows 1-3 (9 combinations), both orders. Home-home is the reference.
   Ratings matter as much as times (comfort first).
+- **`lateral`** (18): index in the stretch column (`r?c1`) with the middle
+  finger, all row combinations, both orders. Reference: the same pattern
+  with the index in column 2 (from `scissors-im`). The user's experience:
+  QWERTY G-D on the left hand was straining.
 - **`sf-index`** (10): index same-finger bigrams, both orders: vertical in
   column 2 (`u n`, `n m`) and to/from the stretch column (`y n`, `y u`,
   `y m`). Reference: the index-middle pattern with the same rows. Caveat:

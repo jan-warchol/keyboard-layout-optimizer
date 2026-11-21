@@ -49,12 +49,14 @@ sweep. Details and results: [docs/optimizer.md](docs/optimizer.md).
 ## Next steps
 
 1. **Run the focus measurements** (the user): `python3 measure/measure.py
-   run --plan focus` (50 patterns, ~13 min; pause keystats first), three
-   sessions on different days. Then `python3 analysis/measurements.py
+   run --plan focus` (68 patterns, ~17 min, may take two sittings; pause
+   keystats first), three rounds on different days. Then `python3 analysis/measurements.py
    focus`, and set the model parameters from it: scissors per direction,
-   `sf_index`, `layer`/`layer_cont` (layer = "Sft held" stand-in). Re-run
+   `lateral`, `sf_index`, `layer`/`layer_cont` (layer = "Sft held" stand-in). Re-run
    the sweep with the new values. Design in
    [docs/measurement-plan.md](docs/measurement-plan.md) (Focus measurements).
+   Later round: middle-ring and ring-up-pinky-down scissors (the user
+   finds them straining; the sweep says layouts avoid them anyway).
 2. **Review the layout with the user**, pin what feels wrong, then type
    on it and fit costs from the keylogs (option 4: everyday typing as
    measurement, keylogs of practised movements, median per bigram).
