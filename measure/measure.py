@@ -6,7 +6,9 @@ Each trial highlights 1-4 keys and shows the sequence to type cyclically
 word - separate key presses, not a back-and-forth oscillation or a sprint.
 Afterwards rate the discomfort on the top row keys . u i o b = 1-5
 (Backspace = redo, Del = skip). Del during a trial pauses, Backspace
-starts it over (nothing saved).
+starts it over (nothing saved). A wrong key counts as an error and the
+sequence moves on, so the rhythm isn't lost (since 2026-11-21; before, the
+correct key had to be pressed).
 
 Works on the measurement layer (see make_measurement_layer.py) or on layer 4
 (the typing layer, plain keys since 2026-11-19): both send the same keys
@@ -598,9 +600,8 @@ def run_trial(kb, pattern, header, cycles):
             ok = pos == key_of(e) and (pos.startswith("t") or held == want)
             presses.append([pos, t, None, nxt if ok else -1])
             open_presses[pos] = len(presses) - 1
-            if ok:
-                nxt += 1
-            else:
+            nxt += 1            # a wrong key takes its slot: keep the rhythm
+            if not ok:
                 errors += 1
             show("" if ok else "   \x1b[31mwrong key\x1b[0m")
             if nxt >= total:
@@ -747,7 +748,7 @@ def cmd_run(args):
                    "pattern": pattern, "word": WORD_TEXT.get(tuple(pattern)), "control": control,
                    "status": "skipped" if rating == "skip" else "ok",
                    "rating": rating if isinstance(rating, int) else None,
-                   "cycles": cycles, "warmup_cycles": warmup,
+                   "cycles": cycles, "warmup_cycles": warmup, "advance_on_error": True,
                    "presses": presses}
             with open(TRIALS, "a") as f:
                 f.write(json.dumps(rec) + "\n")
@@ -827,11 +828,11 @@ def cycle_time(trial):
     k = len(trial["pattern"])
     warmup = trial.get("warmup_cycles", WARMUP_CYCLES[k])
     t = {idx: down for _pos, down, _up, idx in trial["presses"] if idx >= 0}
-    errs = {i for i, (_p, _d, _u, idx) in enumerate(trial["presses"]) if idx < 0}
     cyc = []
     for c in range(warmup, trial["cycles"]):
         a, b = c * k, c * k + k
-        if a in t and b in t and b - a == k and t[b] - t[a] < PAUSE_MS * k:
+        # all slots correct (a wrong key leaves its slot out, see run_trial)
+        if all(i in t for i in range(a, b + 1)) and t[b] - t[a] < PAUSE_MS * k:
             cyc.append(t[b] - t[a])
     return statistics.median(cyc) if cyc else None
 

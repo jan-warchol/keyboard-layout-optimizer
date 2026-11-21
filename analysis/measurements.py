@@ -160,7 +160,7 @@ def per_cycle(t):
     down = {idx: d for _p, d, _u, idx in t["presses"] if idx >= 0}
     bad = set()
     for i, (_p, _d, _u, idx) in enumerate(t["presses"]):
-        if idx < 0:   # an error: the cycle containing the next correct press is unreliable
+        if idx == -1:   # an error: the cycle containing the next correct press is unreliable
             nxt = next((x[3] for x in t["presses"][i:] if x[3] >= 0), None)
             if nxt is not None:
                 bad.add(nxt // k)
@@ -195,7 +195,7 @@ def warmup(plan="pilot-chain"):
             continue
         ref = st.median(late)
         first = " ".join(f"{c / ref:.2f}" if c else "  - " for c in cyc[:3])
-        err = sum(1 for p in t["presses"] if p[3] < 0)
+        err = sum(1 for p in t["presses"] if p[3] == -1)
         print(f"  {t['time'][11:16]} {t.get('word') or name(t['pattern']):14} {ref:5.0f} ms  [{first}]"
               f"  rating {t['rating']}  errors {err}")
     rep = collections.defaultdict(list)
