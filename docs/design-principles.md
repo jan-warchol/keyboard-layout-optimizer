@@ -291,3 +291,6 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   and time is mostly a tie-breaker; no exchange rate from preference
   questions. Proposed instead: a fatigue test, i.e. how fast the hand
   tires on a pattern typed at a fixed, similar pace (design open).
+  User: tiredness grows slowly and has no clear moment; better measure
+  the slowdown over a long trial and when it starts, though a slowdown
+  marks strain rather than tiredness.

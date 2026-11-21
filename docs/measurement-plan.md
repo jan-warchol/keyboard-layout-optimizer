@@ -42,6 +42,13 @@ Round notes:
   costs +70-120 ms per one-row scissor and +95-135 for the full one, rated
   3-5, i.e. 3-4× the 30 ms guess; middle up + index down +10-70 ms, rated
   1-2, more than the "nearly free" 5 ms guess but comfortable.
+- `focus-2` round 1 (2026-11-21 evening, 15 min after focus-1; controls
+  ~7% faster than in focus-1). Lateral stretch vs the same pattern with
+  the index in column 2, session-corrected through the shared home-row
+  patterns: mostly +25-100 ms (up to +250 with the middle finger in the
+  bottom row), i.e. above the 40 ms guess, and **ratings 1-2 steps worse**:
+  `y r Spc` (both home) 3 vs 2; every pattern with the middle finger in
+  the bottom row rated 4-5. Fits the user's G-D experience.
 
 Not measured yet, though the user finds them straining too: middle-ring
 scissors (both directions) and ring up + pinky down. In the sweep they
