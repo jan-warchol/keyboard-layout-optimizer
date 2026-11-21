@@ -323,9 +323,9 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   next iteration:
   - Scissors with a finger skipped strain: `n o` (ring top, index bottom)
     about 4 of 5, middle-pinky too. Model: `sc_far` *(guess, 100 per
-    row)*; measured by `focus-8`, `focus-9`.
+    row)*; measured by `focus-8`.
   - The pinky top key needs the hand to move up, about as far as c6 top:
-    `e_pinky_top` 25 → 35 *(guess)*; `focus-10`.
+    `e_pinky_top` 25 → 35 *(guess)*; `focus-9`.
   - The number-row c6 key is pressed with the ring finger (the pinky
     doesn't reach it): `model.FINGER_POS`.
   - The one-shot Polish key on the number row (c5) works but is in a bad
@@ -336,3 +336,13 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   - Thumbs: the outermost thumb key (t4, Space so far) is hard to reach.
     Ctrl, Shift and the layer key should be on the inner three; Space on
     t4 is not acceptable either.
+- **2026-11-21, thumb keys** (user), innermost first: Shift, layer key,
+  Space, and the outermost (hard to reach) for Alt/Super or the Polish
+  one-shot key, undecided. Shift and the layer key need not be adjacent:
+  shifted layer-2 keys were rare in the typing test. Ctrl: not decided
+  yet (see what-next.md); Ctrl+Shift+letter shortcuts with a layer-2
+  letter (Ctrl+Shift+V in the terminal) would need three modifiers held,
+  one-shot modifiers make them sequential taps.
+- **2026-11-21, shifted digits:** `! @ # $ % *` come from the shifted digits
+  1-5 and 8 of the function layer (user), so the optimizer no longer
+  places them (`anneal.SHIFTED_DIGITS`, costed like digits).

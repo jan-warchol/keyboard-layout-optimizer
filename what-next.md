@@ -59,8 +59,8 @@ sweep. Details and results: [docs/optimizer.md](docs/optimizer.md).
    [docs/measurement-plan.md](docs/measurement-plan.md) (Focus measurements).
    Later round: middle-ring and ring-up-pinky-down scissors (the user
    finds them straining; the sweep says layouts avoid them anyway).
-   Added after the first typing test: `focus-8` (index-ring scissors),
-   `focus-9` (middle-pinky), `focus-10` (pinky reach).
+   Added after the first typing test: `focus-8` (scissors with a finger
+   skipped), `focus-9` (pinky reach).
 2. **Typing test** (`measure.py type --layout NAME`, text
    `data/typing-test.txt`, 236 chars since the first run took 17 min):
    first run on the 2026-11-21 one-shot layout, layers 3-5.

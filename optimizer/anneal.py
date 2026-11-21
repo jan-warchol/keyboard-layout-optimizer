@@ -39,6 +39,9 @@ ITEMS = [(l, l.upper()) for l in LETTERS] + [(p[0], p[1]) for p in PAIRS]
 # Polish letters need no keys of their own. Its shifted half is unused.
 DK, DK_UP = "ℙ", "ℙ⇧"
 LATIN = list("abcdefghijklmnopqrstuvwxyz")
+# Shifted digits 1 2 3 4 5 8 on the function layer give these (user,
+# 2026-11-21): typed like digits (palm), not placed in the grid.
+SHIFTED_DIGITS = set("!@#$%*")
 # Space on a finger key in the grid instead of the thumb (--space grid): a
 # whole key on the base layer, its shifted half unused.
 SPACE_UP = "␣⇧"
@@ -85,7 +88,8 @@ class Problem:
             | {c.upper() for c in POLISH}
         syms = [c for c, _ in sorted(uni.items(), key=lambda x: -x[1])
                 if not c.isalnum() and c not in FIXED and c not in pinned and c.isprintable()
-                and len(c) == 1 and c.isascii() and c not in in_items][:free]
+                and len(c) == 1 and c.isascii() and c not in in_items
+                and c not in SHIFTED_DIGITS][:free]
         self.symbols = syms
         # units: whole-key items (letters and symbol pairs: lower halves, then
         # upper halves), loose symbols, pinned, fixed, pseudo
@@ -96,7 +100,7 @@ class Problem:
         def unit(ch):
             if ch in self.uidx:
                 return self.uidx[ch]
-            return self.uidx["palm"] if ch.isdigit() else self.uidx["other"]
+            return self.uidx["palm"] if ch.isdigit() or ch in SHIFTED_DIGITS else self.uidx["other"]
 
         def seq(ch):
             """Units typed for a character (one-shot: Polish = DK + Latin)."""
