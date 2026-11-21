@@ -64,7 +64,8 @@ avoid them anyway; measure them in a later round (`--plan scissors`).
 - **`layer`** (24): home-row pairs `n r`, `n l`, `r l`, both orders, with
   the layer key held for neither, the first, the second or both letters.
   Layer keys send no key code, so thumb Shift (`t3`, next to Space;
-  `LAYER_KEY` in `measure.py`) stands in for the layer key: the same held
+  `LAYER_KEY` in `measure.py`; confirmed by the user 2026-11-21) stands
+  in for the layer key: the same held
   thumb movement. A letter typed with the wrong layer state (e.g. the next
   letter pressed before the layer key is released) counts as an error,
   since on the real layout it would type the wrong character. Space
