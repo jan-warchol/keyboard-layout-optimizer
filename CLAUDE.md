@@ -23,14 +23,17 @@ timed measurements on the real keyboard. Comfort first, speed second.
 - `measure/make_measurement_layer.py`: builds the Chrysalis layout with the
   measurement layer. Root `*.json` files are Chrysalis exports.
 - `data/measurements/trials.jsonl`: raw trials, append-only, one JSON per
-  trial; `presses` = [pos, t_down, t_up, index], index -1 = wrong key.
+  trial; `presses` = [pos, t_down, t_up, index], index -1 = wrong key,
+  -2 = held modifier (layer-key stand-in).
   Protocol-1 trials are exploratory only.
 - `analysis/measurements.py`: `report` (phases 1-2a), `warmup PLAN` (word
-  pilots); `analysis/word_pool.py`: Polish words typeable on layer 4.
+  pilots), `focus` (scissors, index same-finger, layer);
+  `analysis/word_pool.py`: Polish words typeable on layer 4.
   Analysis scripts and derived tables live in `analysis/`.
 - `analysis/corpus.py` → `analysis/corpus/{1,2,3}grams.tsv` (corpus);
   `optimizer/model.py` (slots, cost model, parameters), `anneal.py`
-  (optimizer), `sweep.py` (sensitivity).
+  (optimizer, numba loop), `sweep.py` (sensitivity). Run the optimizer
+  with `uv run` (numpy + numba from `pyproject.toml`).
 - `keystats-data` → keylogger output, `dariogoetz_optimizer` → upstream
   optimizer: both external symlinks, read-only, never write analysis there.
 

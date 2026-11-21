@@ -27,9 +27,14 @@ focused (terminal focus reporting).
                letter swapped to its layer-4 key), each followed by Space
       scissors: adjacent fingers in all row combinations, each followed by
                Space ("l h Spc", both orders): row-change and scissor costs
+      scissors-im: the index-middle part of scissors (18 patterns)
+      sf-index: index same-finger bigrams followed by Space (10 patterns)
+      layer:   home-row pairs + Space with the layer key held for none,
+               the first, the second or both letters (24 patterns)
+      focus:   scissors-im + sf-index + layer, in one session
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
-            e.g. "u n r" or "r1c2 r2c2 r2c3"
+            e.g. "u n r" or "r1c2 r2c2 r2c3"; "Sft+r" = r with Sft held
   python3 measure/measure.py stats
 """
 import argparse
@@ -95,11 +100,32 @@ def canonical(pattern):
     return min(tuple(p[i:] + p[:i]) for i in range(len(p)))
 
 
+# A pattern element is a position, or "mod+pos": pos pressed while the thumb
+# key mod is held (the layer switch; the press of mod is logged with index
+# MOD_INDEX and doesn't count as an error).
+MOD_INDEX = -2
+
+
+def key_of(e):
+    return e.split("+")[-1]
+
+
+def mod_of(e):
+    return e.split("+")[0] if "+" in e else None
+
+
+def label(e):
+    m = mod_of(e)
+    return f"{LABEL[m]}+{LABEL[key_of(e)]}" if m else LABEL[e]
+
+
 def column(pos):
+    pos = key_of(pos)
     return 0 if pos.startswith("t") else int(pos[3])   # thumb counts as innermost
 
 
 def finger(pos):
+    pos = key_of(pos)
     if pos.startswith("t"):
         return "thumb"
     return {0: "index", 1: "index", 2: "index", 3: "middle", 4: "ring",
@@ -244,7 +270,7 @@ def pilot_words_plan():
     return [canonical(p) for p in plan + [words[k][0] for k in (4, 5, 6)]]
 
 
-def scissors_plan():
+def scissors_plan(cols=(2, 3, 4)):
     """Adjacent fingers (index-middle, middle-ring, ring-pinky), each finger in
     rows 1-3 (9 combinations, home-home is the in-session reference), both
     orders, followed by Space: 3-key cycles like the phase-1 triples, which
@@ -252,11 +278,49 @@ def scissors_plan():
     word-like 'a b Spc' instead of a trill. Opposite rows are the scissors
     (ring down + pinky up suspected worst)."""
     pats = []
-    for c in (2, 3, 4):
+    for c in cols:
         for ra, rb in itertools.product((1, 2, 3), repeat=2):
             a, b = f"r{ra}c{c}", f"r{rb}c{c + 1}"
             pats += [(a, b, "t4"), (b, a, "t4")]
     return [canonical(p) for p in pats]
+
+
+def scissors_im_plan():
+    """Index-middle scissors only (columns 2-3): 18 patterns. The optimizer's
+    layout depends most on these (docs/optimizer.md)."""
+    return scissors_plan(cols=(2,))
+
+
+def sf_index_plan():
+    """Index same-finger bigram followed by Space ('a b Spc', both orders),
+    the same context as the scissors plans, whose index-middle home-row
+    patterns are the different-finger reference. Vertical moves in the home
+    column and moves to and from the stretch column (the optimizer puts
+    letters there): 5 pairs, 10 patterns."""
+    pairs = [("r1c2", "r2c2"), ("r2c2", "r3c2"), ("r2c1", "r2c2"),
+             ("r2c1", "r1c2"), ("r2c1", "r3c2")]
+    return [canonical(p) for a, b in pairs for p in ((a, b, "t4"), (b, a, "t4"))]
+
+
+# Thumb key standing in for the second-letter-layer key: layer keys send no
+# key code, so a thumb modifier that does is held instead (same movement).
+LAYER_KEY = "t3"
+
+
+def layer_plan():
+    """Layer switch inside a word: home-row pairs (index-middle, middle-ring,
+    index-ring, both orders) + Space, with the layer key held for none, the
+    first, the second or both letters. 24 patterns; the plain ones repeat
+    phase-1 triples as the in-session reference."""
+    L = LAYER_KEY + "+"
+    pats = []
+    for a, b in itertools.permutations(("r2c2", "r2c3", "r2c4"), 2):
+        pats += [(a, b, "t4"), (L + a, b, "t4"), (a, L + b, "t4"), (L + a, L + b, "t4")]
+    return [canonical(p) for p in pats]
+
+
+def focus_plan():
+    return list(dict.fromkeys(scissors_im_plan() + sf_index_plan() + layer_plan()))
 
 
 def space_last(pattern):
@@ -268,13 +332,14 @@ def space_last(pattern):
 
 PLANS = {"phase1": phase1_plan, "phase2a": phase2a_plan, "pilot-words": pilot_words_plan,
          "pilot-chain": pilot_chain_plan, "pilot-real": pilot_real_plan, "bigrams": bigram_plan,
-         "scissors": scissors_plan}
+         "scissors": scissors_plan, "scissors-im": scissors_im_plan, "sf-index": sf_index_plan,
+         "layer": layer_plan, "focus": focus_plan}
 # Plans run in their own order, with planned repeats inside one session.
 FIXED_ORDER = {"pilot-words", "pilot-chain", "pilot-real"}
 # Plans whose words are shown as planned, not rotated by display_order.
 AS_PLANNED = {"pilot-chain", "pilot-real"}
 # Plans whose patterns are shown with Space last.
-SPACE_LAST = {"scissors"}
+SPACE_LAST = {"scissors", "scissors-im", "sf-index", "layer", "focus"}
 
 
 def load_trials():
@@ -290,6 +355,8 @@ def transitions(trial):
     warmup = trial.get("warmup_cycles", WARMUP_CYCLES[k])
     out, prev = [], None
     for pos, t_down, _t_up, idx in trial["presses"]:
+        if idx == MOD_INDEX:   # held modifier: not a transition
+            continue
         if idx < 0:            # wrong key: breaks the chain
             prev = None
             continue
@@ -393,8 +460,8 @@ def sequence_view(pattern, cycles, nxt, width=72):
     for c in range(cycles):
         cells = []
         for i in range(c * k, c * k + k):
-            label = LABEL[pattern[i % k]]
-            text = ("_" if label == "Spc" else label) if word else f"{label:<3}"
+            lab = label(pattern[i % k])
+            text = ("_" if lab == "Spc" else lab) if word else f"{lab:<3}"
             if i < nxt:
                 cells.append(f"\x1b[2;32m{text}\x1b[0m")
             elif i == nxt:
@@ -402,7 +469,8 @@ def sequence_view(pattern, cycles, nxt, width=72):
             else:
                 cells.append(text)
         groups.append(("" if word else " ").join(cells))
-    per_line = max(1, (width + 2) // ((k + 1) if word else (4 * k + 1)))
+    w = max(len(label(e)) for e in pattern)
+    per_line = max(1, (width + 2) // ((k + 1) if word else ((max(w, 3) + 1) * k + 1)))
     for c in range(0, cycles, per_line):
         lines.append("   " + "  ".join(groups[c:c + per_line]))
     return "\n".join(lines)
@@ -413,8 +481,12 @@ def run_trial(kb, pattern, header, cycles):
     total = cycles * k
     # words: number the keys in typing order, to help remember the sequence
     word = WORD_TEXT.get(tuple(pattern))
-    labels = {pos: (f"{i + 1}:{LABEL[pos]}" if k >= 4 and not word else LABEL[pos])
-              for i, pos in enumerate(pattern)}
+    labels = {key_of(e): (f"{i + 1}:{LABEL[key_of(e)]}" if k >= 4 and not word
+                          else LABEL[key_of(e)])
+              for i, e in enumerate(pattern)}
+    mods = {mod_of(e) for e in pattern} - {None}
+    labels.update({m: LABEL[m] for m in mods})
+    held = set()
     presses, nxt, errors = [], 0, 0
 
     def show(msg=""):
@@ -432,12 +504,21 @@ def run_trial(kb, pattern, header, cycles):
             if pos == "quit":
                 return "quit", presses
             if not down:
+                held.discard(pos)
                 if pos in open_presses:
                     presses[open_presses.pop(pos)][2] = t
                 continue
             if pos in PAUSE_KEYS or pos == "blur":
                 return "paused", presses
-            ok = pos == pattern[nxt % k]
+            if pos in mods:
+                held.add(pos)
+                presses.append([pos, t, None, MOD_INDEX])
+                open_presses[pos] = len(presses) - 1
+                continue
+            e = pattern[nxt % k]
+            want = {mod_of(e)} - {None}
+            # a letter typed with the wrong layer is an error; Space isn't
+            ok = pos == key_of(e) and (pos.startswith("t") or held == want)
             presses.append([pos, t, None, nxt if ok else -1])
             open_presses[pos] = len(presses) - 1
             if ok:
@@ -505,9 +586,10 @@ def cmd_run(args):
             done[c] = done.get(c, 0) + 1
     if args.patterns:
         with open(args.patterns) as f:
-            plan = [canonical([LABEL_TO_POS.get(x, x) for x in l.split()])
+            plan = [canonical(["+".join(LABEL_TO_POS.get(y, y) for y in x.split("+"))
+                               for x in l.split()])
                     for l in f if l.strip() and not l.startswith("#")]
-        bad = {p for pat in plan for p in pat if p not in LABEL}
+        bad = {p for pat in plan for e in pat for p in e.split("+") if p not in LABEL}
         if bad:
             sys.exit(f"unknown keys in {args.patterns}: {sorted(bad)}")
     else:

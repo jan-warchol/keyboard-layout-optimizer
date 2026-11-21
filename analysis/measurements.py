@@ -4,6 +4,8 @@
   python3 analysis/measurements.py report   # phases 1 and 2a (protocol 2)
   python3 analysis/measurements.py warmup [PLAN]   # word pilot (default pilot-chain):
                                                    # how fast cycle time settles
+  python3 analysis/measurements.py focus    # index-middle scissors, index
+                                            # same-finger, layer switch
 
 Everything is recomputed from the raw trials; nothing is stored. Findings
 are summarised in docs/measurement-plan.md.
@@ -17,12 +19,13 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "measure"))
-from measure import (FINGERS, LABEL, ROLL_IN, ROLL_OUT, canonical, cycle_time,  # noqa: E402
+from measure import (FINGERS, LABEL, LAYER_KEY, ROLL_IN, ROLL_OUT, canonical,  # noqa: E402
+                     cycle_time, focus_plan, label, layer_plan, scissors_im_plan, sf_index_plan,
                      load_trials, phase1_plan, phase2a_plan, transitions)
 
 
 def name(p):
-    return " ".join(LABEL[x] for x in p)
+    return " ".join(label(x) for x in p)
 
 
 def trials(control=False, plan=None):
@@ -207,6 +210,82 @@ def warmup(plan="pilot-chain"):
                   + f"   ({(v[-1] / v[0] - 1) * 100:+.0f}%)")
 
 
+FOCUS_PLANS = {"focus", "scissors", "scissors-im", "sf-index", "layer"}
+ROW = {1: "top", 2: "home", 3: "bottom"}
+
+
+def focus():
+    """Session-corrected cycle times (geometric mean over sessions, ms) and
+    median ratings of the focus plans, with the differences that map onto
+    the optimizer's parameters. Whole-cycle times of 'a b Spc'."""
+    plan = focus_plan()
+    ts = [t for t in trials() if t.get("plan") in FOCUS_PLANS]
+    if not ts:
+        print("no trials of the focus plans yet")
+        return
+    ct = cycle_times(ts)
+    ratings = collections.defaultdict(list)
+    for t in ts:
+        ratings[canonical(t["pattern"])].append(t["rating"])
+    sessions = sorted({t["session"] for t in ts})
+    sf = session_factors(ct, plan) if len(sessions) > 1 else {s: 1.0 for s in sessions}
+    print(f"{len(ts)} trials, {len(sessions)} sessions; session factors: "
+          + ", ".join(f"{s[5:16]} {f:.2f}" for s, f in sf.items()))
+
+    def get(*pattern):
+        """(time, median rating, n sessions) or None."""
+        c = canonical(pattern)
+        if not ct.get(c):
+            return None
+        v = [x / sf.get(s, 1.0) for s, x in ct[c].items()]
+        return math.exp(st.mean(math.log(x) for x in v)), st.median(ratings[c]), len(v)
+
+    def cell(r, ref=None):
+        if r is None:
+            return f"{'-':>13}"
+        d = f"{r[0] - ref[0]:+5.0f}" if ref else "     "
+        return f"{r[0]:4.0f}{d} ({r[1]:g})"
+
+    print("\nINDEX-MIDDLE SCISSORS: cycle 'a b Spc' ms, diff vs home-home (median rating)")
+    for order in ("index first", "middle first"):
+        print(f"  {order}; rows: index, columns: middle")
+        print("  " + " " * 8 + "".join(f"{ROW[rm]:>15}" for rm in (1, 2, 3)))
+        for ri in (1, 2, 3):
+            out = []
+            for rm in (1, 2, 3):
+                a, b = f"r{ri}c2", f"r{rm}c3"
+                pat = (a, b, "t4") if order == "index first" else (b, a, "t4")
+                ref = get(*(("r2c2", "r2c3", "t4") if order == "index first"
+                            else ("r2c3", "r2c2", "t4")))
+                out.append(cell(get(*pat), ref))
+            print(f"  {ROW[ri]:>8}" + "".join(f"{x:>15}" for x in out))
+    print("  index up + middle down: index top row with middle home/bottom (upper right);"
+          "\n  middle up + index down: lower left.")
+
+    print("\nINDEX SAME-FINGER: cycle 'a b Spc' ms (rating), diff vs the index-middle"
+          "\n  pattern with the same rows ('a m Spc', index in column 2)")
+    for pat in sf_index_plan():
+        pat = list(pat)
+        i = pat.index("t4")
+        pat = pat[i + 1:] + pat[:i + 1]
+        a, b = pat[0], pat[1]
+        ref = get(f"r{a[1]}c2", f"r{b[1]}c3", "t4")
+        print(f"  {name(pat):12} {cell(get(*pat), ref)}")
+
+    print(f"\nLAYER SWITCH ({LABEL[LAYER_KEY]} held): cycle 'a b Spc' ms (rating), diff vs plain")
+    L = LAYER_KEY + "+"
+    print(f"  {'pair':6}{'plain':>13}{'layer first':>15}{'layer second':>15}{'layer both':>15}")
+    pats = layer_plan()
+    for i in range(0, len(pats), 4):
+        plain = [x for x in pats[i] if x != "t4"]
+        a, b = (plain if canonical((plain[0], plain[1], "t4")) == pats[i]
+                else plain[::-1])
+        ref = get(a, b, "t4")
+        row = [cell(ref), cell(get(L + a, b, "t4"), ref), cell(get(a, L + b, "t4"), ref),
+               cell(get(L + a, L + b, "t4"), ref)]
+        print(f"  {LABEL[a]} {LABEL[b]:4}" + "".join(f"{x:>15}" for x in row))
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "report"
-    {"report": report, "warmup": warmup}[cmd](*sys.argv[2:])
+    {"report": report, "warmup": warmup, "focus": focus}[cmd](*sys.argv[2:])

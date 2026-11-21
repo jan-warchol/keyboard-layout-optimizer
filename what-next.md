@@ -48,17 +48,13 @@ sweep. Details and results: [docs/optimizer.md](docs/optimizer.md).
 
 ## Next steps
 
-1. **Measure the few parameters that matter**, in one or two short
-   sessions:
-   - index-middle scissors, both directions: the 18 index-middle patterns
-     of the `scissors` plan (`measure.py run --plan scissors` runs all 54;
-     restrict it to columns 2-3 first, i.e. `for c in (2,)` or a
-     `--patterns` file). Ratings matter as much as times (comfort first).
-   - index same-finger vs different-finger in a text-like context (3-key
-     cycles with Space, like the scissors plan): design open.
-   - layer switch (phase 5 in measurement-plan.md): design open.
-   Write the analysis for these trials (none yet in
-   `analysis/measurements.py`).
+1. **Run the focus measurements** (the user): `python3 measure/measure.py
+   run --plan focus` (50 patterns, ~13 min; pause keystats first), three
+   sessions on different days. Then `python3 analysis/measurements.py
+   focus`, and set the model parameters from it: scissors per direction,
+   `sf_index`, `layer`/`layer_cont` (layer = "Sft held" stand-in). Re-run
+   the sweep with the new values. Design in
+   [docs/measurement-plan.md](docs/measurement-plan.md) (Focus measurements).
 2. **Review the layout with the user**, pin what feels wrong, then type
    on it and fit costs from the keylogs (option 4: everyday typing as
    measurement, keylogs of practised movements, median per bigram).

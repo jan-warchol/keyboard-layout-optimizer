@@ -12,6 +12,36 @@ sensitivity sweep now decide what to measure. Added since: the `scissors`
 plan in `measure.py` (adjacent fingers in all row combinations followed by
 Space, both orders, 54 patterns), not run yet.
 
+### Focus measurements (2026-11-21, not run yet)
+
+The sensitivity sweep (docs/optimizer.md) found three parameters that
+move the layout: the index-middle scissors, the index same-finger cost
+and the layer switch. `measure.py run --plan focus` measures all three in
+one session (50 patterns, ~13 min *(guess)*; `--repeats 3` = three
+sessions, at most once per pattern per session). All patterns are 3-key
+cycles `a b Spc`, the context of the phase-1 triples, shown with Space
+last. Report: `python3 analysis/measurements.py focus`.
+
+- **`scissors-im`** (18): index in column 2, middle in column 3, each in
+  rows 1-3 (9 combinations), both orders. Home-home is the reference.
+  Ratings matter as much as times (comfort first).
+- **`sf-index`** (10): index same-finger bigrams, both orders: vertical in
+  column 2 (`u n`, `n m`) and to/from the stretch column (`y n`, `y u`,
+  `y m`). Reference: the index-middle pattern with the same rows. Caveat:
+  in `a b Spc` the index also travels back from b to a during Space; in
+  `a m Spc` it doesn't. Text has the same effect (the index must reach
+  its next key), so this is part of the cost, not an artefact *(guess)*.
+- **`layer`** (24): home-row pairs `n r`, `n l`, `r l`, both orders, with
+  the layer key held for neither, the first, the second or both letters.
+  Layer keys send no key code, so thumb Shift (`t3`, next to Space;
+  `LAYER_KEY` in `measure.py`) stands in for the layer key: the same held
+  thumb movement. A letter typed with the wrong layer state (e.g. the next
+  letter pressed before the layer key is released) counts as an error,
+  since on the real layout it would type the wrong character. Space
+  ignores the layer state. Modifier presses are logged with index -2.
+  Differences against the plain pattern give the `layer` (one layered
+  letter) and `layer_cont` (both) costs.
+
 ### Word pilots (handoff, 2026-11-20 evening)
 
 Phases 1 and 2a are done and analysed (findings below). The off-home
@@ -67,7 +97,7 @@ few features and is fitted to many varied sequences.
 | 2a same finger, unanchored | two keys of one finger alternately (18 patterns) | done, 3 sessions |
 | 3 word pilot | which words, warm-up and cycle count | random and chained random words failed; real words inconclusive (see handoff) |
 | 4 word trials | transitions in varied contexts, fitted by a feature model | to do |
-| 5 layer switch | cost of a layer-2 key inside a word | to do, design open |
+| 5 layer switch | cost of a layer-2 key inside a word | plan `layer` ready (part of `focus`), not run |
 | validation | type real text on 2-3 emulated candidate layouts, compare with prediction | to do |
 
 Word trials replace the earlier phases 2b (same finger, anchored), 3
