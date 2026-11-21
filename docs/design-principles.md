@@ -275,3 +275,10 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   the layer switch and the different-finger base, each by ~1-2% of the
   score; other scissors and strain features are in the noise. Measure
   those few next (see what-next.md).
+- 2026-11-21 (later): optimizer compiled with numba (one language). The
+  lateral stretch (index stretch column next to a middle-finger press;
+  QWERTY G-D strained the user's left hand) decides as much as the
+  index-up scissor if it is 4-6× the guess, so it joins the focus
+  measurements (scissors index-middle, lateral, index same-finger, layer
+  switch). Middle-ring and ring-pinky scissors, also straining for the
+  user, come in a later round: layouts avoid them anyway.
