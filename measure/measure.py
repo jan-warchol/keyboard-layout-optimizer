@@ -47,6 +47,10 @@ focused (terminal focus reporting).
       FILE: one sequence per line, key labels or position ids,
             e.g. "u n r" or "r1c2 r2c2 r2c3"; "Sft+r" = r with Sft held
   python3 measure/measure.py stats
+  python3 measure/measure.py type --layout NAME [--text FILE]
+      typing test: type a text normally (Backspace corrects); every key
+      event and every character received is saved with its time to
+      data/measurements/typing.jsonl, for comparing layouts over time
 """
 import argparse
 import collections
@@ -887,6 +891,157 @@ def cmd_stats(args):
         print(f"  {s}   " + "   ".join(parts))
 
 
+# ---------------------------------------------------------------- typing test
+
+TYPING = os.path.join(DATA, "typing.jsonl")
+TEXT_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "typing-test.txt")
+CSI_END = set(range(0x40, 0x7f))
+
+
+def strip_escapes(data):
+    """Drop terminal escape sequences (focus reports, arrows) from raw stdin."""
+    out, i = bytearray(), 0
+    while i < len(data):
+        if data[i] == 0x1b and i + 1 < len(data) and data[i + 1] == ord("["):
+            i += 2
+            while i < len(data) and data[i] not in CSI_END:
+                i += 1
+            i += 1
+        else:
+            out.append(data[i])
+            i += 1
+    return bytes(out)
+
+
+def text_view(target, typed, width=76):
+    """Target text with the typed part over it: correct green, wrong red
+    (showing what was typed), the cursor highlighted. Lines wrap at spaces."""
+    def cell(i):
+        ch = target[i]
+        shown = "⏎" if ch == "\n" else ch
+        if i < len(typed):
+            if typed[i] == ch:
+                return f"\x1b[32m{shown}\x1b[0m"
+            t = "⏎" if typed[i] == "\n" else ("·" if typed[i] == " " else typed[i])
+            return f"\x1b[97;41m{t}\x1b[0m"
+        if i == len(typed):
+            return f"\x1b[1;97;44m{shown}\x1b[0m"
+        return f"\x1b[2m{shown}\x1b[0m" if ch == "\n" else shown
+    lines, start = [], 0
+    for para in target.split("\n"):
+        end = start + len(para)            # index of this line's "\n" (or len)
+        a = start
+        while True:
+            b = min(end, a + width)
+            if b < end:
+                sp = target.rfind(" ", a, b + 1)
+                b = sp + 1 if sp > a else b
+            else:
+                b = end + 1 if end < len(target) else end
+            lines.append("   " + "".join(cell(i) for i in range(a, b)))
+            a = b
+            if a > end or a >= len(target):
+                break
+        start = end + 1
+    extra = typed[len(target):]
+    if extra:
+        lines.append("   \x1b[97;41m" + extra.replace("\n", "⏎") + "\x1b[0m")
+    return "\n".join(lines)
+
+
+def cmd_type(args):
+    """Type a text normally (Backspace corrects) on the layout under test;
+    every key event of the keyboard and every character the terminal
+    received is saved with its time, for later analysis."""
+    target = open(args.text, encoding="utf-8").read().rstrip("\n")
+    kb = Keyboard()
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    tty.setraw(fd)
+    sys.stdout.write("\x1b[?1004h")
+    dec = __import__("codecs").getincrementaldecoder("utf-8")()
+    typed, chars, keys, focus = "", [], [], []
+    backspaces, status = 0, "aborted"
+    header = (f"Typing test: {os.path.basename(args.text)}  ·  layout {args.layout}\n"
+              "   type normally, Backspace corrects (Ctrl-W: word)  ·  Ctrl-C quits (saved as aborted)")
+
+    def show():
+        screen(header, "", text_view(target, typed), "",
+               f"   backspaces: {backspaces}")
+    show()
+    try:
+        while typed != target:
+            r, _, _ = select.select(kb.fds + [fd], [], [], None)
+            for f in r:
+                if f == fd:
+                    raw = os.read(fd, 1024)
+                    t = time.time() * 1000
+                    i, o = raw.rfind(b"\x1b[I"), raw.rfind(b"\x1b[O")
+                    if i != o:
+                        kb.focused = i > o
+                        focus.append([t, kb.focused])
+                    text = dec.decode(strip_escapes(raw))
+                    if not text:
+                        continue
+                    chars.append([t, text])
+                    for ch in text:
+                        if ch == "\x03":
+                            raise KeyboardInterrupt
+                        if ch in "\x7f\x08":
+                            if typed:
+                                typed = typed[:-1]
+                                backspaces += 1
+                        elif ch == "\x17":
+                            n = len(typed.rstrip(" ")); n = typed.rfind(" ", 0, n) + 1
+                            backspaces += len(typed) - n
+                            typed = typed[:n]
+                        elif ch == "\r" or ch == "\n":
+                            typed += "\n"
+                        elif ch == "\t" or ch >= " ":
+                            typed += ch
+                    show()
+                    continue
+                try:
+                    buf = os.read(f, EVENT.size * 64)
+                except BlockingIOError:
+                    continue
+                for j in range(0, len(buf) - EVENT.size + 1, EVENT.size):
+                    sec, usec, typ, code, value = EVENT.unpack_from(buf, j)
+                    if typ != EV_KEY or value == 2 or not kb.focused:
+                        continue
+                    t = sec * 1000 + usec / 1000
+                    key = (code, value)
+                    if abs(kb.last.get(key, -1e9) - t) < 3:   # same event on two interfaces
+                        continue
+                    kb.last[key] = t
+                    keys.append([code, value, t])
+        status = "done"
+    except KeyboardInterrupt:
+        pass
+    finally:
+        sys.stdout.write("\x1b[?1004l")
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    if not chars:
+        print("\nNothing typed, nothing saved.")
+        return
+    t0, t1 = chars[0][0], chars[-1][0]
+    rec = {"time": datetime.datetime.now().isoformat(timespec="seconds"), "layout": args.layout,
+           "text_file": os.path.basename(args.text), "text": target, "status": status,
+           "typed": typed, "backspaces": backspaces, "duration_ms": round(t1 - t0),
+           "chars": chars, "keys": keys, "focus": focus}
+    with open(TYPING, "a") as f:
+        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    print(f"\n{status}: {len(typed)} chars in {(t1 - t0) / 1000:.1f} s, {backspaces} backspaces"
+          f" -> {os.path.relpath(TYPING)}")
+    print("\nThis text so far (done runs):")
+    for line in open(TYPING):
+        r = json.loads(line)
+        if r["status"] == "done" and r["text"] == target:
+            cpm = len(target) / r["duration_ms"] * 60000
+            print(f"  {r['time']}  {r['layout']:<16} {r['duration_ms'] / 1000:6.1f} s"
+                  f"  {cpm:5.0f} chars/min  {r['backspaces']:3d} backspaces")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -899,8 +1054,11 @@ def main():
     r.add_argument("--repeats", type=int, default=3,
                    help="target number of sessions in which each pattern is measured")
     sub.add_parser("stats")
+    ty = sub.add_parser("type", help="typing test: type a text normally, key events saved")
+    ty.add_argument("--layout", required=True, help="name of the layout being typed on, e.g. opt-2026-11-21")
+    ty.add_argument("--text", default=TEXT_DEFAULT, help="text file (default data/typing-test.txt)")
     args = ap.parse_args()
-    {"run": cmd_run, "stats": cmd_stats}[args.cmd](args)
+    {"run": cmd_run, "stats": cmd_stats, "type": cmd_type}[args.cmd](args)
 
 
 if __name__ == "__main__":

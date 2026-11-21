@@ -19,7 +19,9 @@ timed measurements on the real keyboard. Comfort first, speed second.
   are layer-4 keys; home row is `n r l h`.
 - `measure/measure.py`: `run --plan ...` runs trials (reads
   `/dev/input`, needs a focused terminal, so only the user can run it);
-  `stats` prints a quick summary.
+  `stats` prints a quick summary; `type --layout NAME` is a typing test
+  (normal typing with Backspace, text `data/typing-test.txt`, raw key
+  events + received characters → `data/measurements/typing.jsonl`).
 - `measure/make_measurement_layer.py`: builds the Chrysalis layout with the
   measurement layer. Root `*.json` files are Chrysalis exports.
 - `data/measurements/trials.jsonl`: raw trials, append-only, one JSON per
