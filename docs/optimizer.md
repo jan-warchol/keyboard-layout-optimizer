@@ -183,3 +183,42 @@ be worse than the baseline, so regret ≥ 0, and best-of-8 is stable to
 
   Base layer unchanged from the scissor sweep: `g o d l c f` / `i a t s n
   w` / `p e z m r /`.
+
+## Fitted parameters (`optimizer/fit.py`, 2026-11-21, round 1 only)
+
+`uv run optimizer/fit.py --k K` estimates parameters from the focus
+measurements and writes `optimizer/fitted.json`; `anneal.py --params
+optimizer/fitted.json` uses it. Each estimate: measured cycle-time
+difference vs the reference pattern + K × difference in rating penalty
+(0 1 3 6 12), minus what the model already predicts for that difference,
+median over pattern pairs. K = ms per penalty step, 50 *(guess)*.
+
+| Parameter | Guess | K=0 | K=50 | K=100 |
+|---|---|---|---|---|
+| layer (entering layer 2, held key) | 60 | 400 | 400 | 400 |
+| layer_cont | 15 | <0 → 0 | 0 | 0 |
+| sc_index_up | 30 | 20 | 180 | 300 |
+| sc_middle_up_i | 5 | <0 → 0 | 0 | 0 |
+| sc_full_factor | 3 | 3.1 | 2.7 | 3.0 |
+| lateral | 40 | 36 | 174 | 299 |
+| sf_index | 165 | 262 | 233 | 197 |
+
+Derived *(guess)*: shift = layer (same thumb movement); middle-ring and
+ring-up-pinky-down scissors = sc_index_up (user: similarly straining).
+
+Findings and problems of the first fitted layouts:
+- **Number row:** with layer = 400 the optimizer put letters on all
+  number-row keys. Design-principles allows letters only on the middle
+  (c3) and outer (c6) keys, so `NO_LETTER_POS` in `anneal.py` now enforces
+  it (both layers). With it, 19 letters on the base layer, 9% of
+  keypresses on layer 2 (old guesses: 18 letters, 15%).
+- **Unbalanced costs:** measured parameters now carry the rating penalty,
+  guessed ones (pinky efforts, ring-pinky, number-row reach) don't. At
+  K=50 the pinky takes 24% of keypresses (old guesses 18%) and the middle
+  finger 9%: not trustworthy. Fix: rate-and-fit the pinky costs too
+  (phase 1-2a have ratings), or scale the guesses consistently.
+- **Scissor direction:** index→middle with the index up is +100-145 ms,
+  middle→index +-15 ms for the same rows; the model's scissor ignores the
+  order of the two keys, the fit takes the median.
+- The layer cost is from Shift held and unpractised; one-shot (`focus-7`)
+  may be much cheaper.

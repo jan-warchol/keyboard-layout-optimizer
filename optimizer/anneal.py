@@ -5,6 +5,7 @@ Score = Σ bigram frequency × transition cost between their slots (+ the
 Polish-letter preference), in ms per typed character.
 
   uv run optimizer/anneal.py [--restarts 4] [--steps 200000] [--set name=value ...]
+                             [--params optimizer/fitted.json]
 """
 import argparse
 import json
@@ -22,6 +23,9 @@ CORPUS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analysi
 POLISH = dict(zip("ąćęłńóśźż", "acelnoszx"))
 LETTERS = list("abcdefghijklmnopqrstuvwxyz") + list(POLISH)
 BASE_ONLY = {"z"}          # pinned to the base layer (design-principles.md)
+# Number-row keys too awkward for letters (design-principles.md, base layer):
+# only the middle-finger key (c3) and the outer key (c6) take letters.
+NO_LETTER_POS = {"r0c1", "r0c2", "r0c4", "r0c5"}
 N_SYMBOL_HALVES = None     # computed: free halves after letters
 
 
@@ -89,7 +93,7 @@ class Problem:
         used = set()
         letters = sorted(LETTERS, key=lambda l: l not in BASE_ONLY)
         for l in letters:
-            pool = base if l in BASE_ONLY else cells
+            pool = [c for c in (base if l in BASE_ONLY else cells) if c[0] not in NO_LETTER_POS]
             c = next(c for c in pool if c not in used)
             used.add(c)
             lo, up = self.S.cell(*c)
@@ -139,6 +143,7 @@ class Problem:
                             np.array(nb_out), np.array(nb_in),
                             cell_slots, np.array(self.sym_halves), 2 * len(LETTERS),
                             np.array([self.uidx[z] for z in BASE_ONLY]),
+                            np.array([p in NO_LETTER_POS for p, _, _ in S.slots]),
                             slot_pos, slot_layer, pl, pl_w, n_slots)
         return self._arrays
 
@@ -206,7 +211,7 @@ def _part(U, nu, slot_of, F, C, nb_ptr, nb_v, nb_out, nb_in):
 
 @njit(cache=True)
 def _anneal(slot_of, steps, t0, t1, seed, F, C, nb_ptr, nb_v, nb_out, nb_in, cell_slots, sym_halves, n_letter_units,
-            base_only, slot_pos, slot_layer, pl, pl_w, n_slots):
+            base_only, no_letter, slot_pos, slot_layer, pl, pl_w, n_slots):
     """Compiled annealing loop with incremental scoring. Moves as before:
     60 % swap two letter cells (both halves), else swap two symbol halves
     (neither may hold a letter, not both empty)."""
@@ -268,6 +273,9 @@ def _anneal(slot_of, steps, t0, t1, seed, F, C, nb_ptr, nb_v, nb_out, nb_in, cel
         for z in base_only:
             if slot_layer[slot_of[z]] != 0:
                 ok = False
+        for k in range(nu):
+            if U[k] < n_letter_units and no_letter[slot_of[U[k]]]:
+                ok = False
         d = 0.0
         if ok:
             d = _part(U, nu, slot_of, F, C, nb_ptr, nb_v, nb_out, nb_in) + _polish(slot_of, slot_pos, slot_layer, pl, pl_w) - old
@@ -304,8 +312,12 @@ def main():
     ap.add_argument("--steps", type=int, default=200000)
     ap.add_argument("--set", nargs="*", default=[])
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--params", help="JSON from optimizer/fit.py (fitted parameters)")
     a = ap.parse_args()
     P = dict(PARAMS)
+    if a.params:
+        with open(a.params) as f:
+            P.update(json.load(f)["params"])
     for kv in a.set:
         k, v = kv.split("=")
         assert k in P, k

@@ -228,15 +228,10 @@ FOCUS_PLANS = {"scissors", "scissors-im", "lateral", "sf-index", "layer", "layer
 ROW = {1: "top", 2: "home", 3: "bottom"}
 
 
-def focus():
-    """Session-corrected cycle times (geometric mean over sessions, ms) and
-    median ratings of the focus plans, with the differences that map onto
-    the optimizer's parameters. Whole-cycle times of 'a b Spc'."""
-    plan = focus_plan()
+def focus_data():
+    """(get, info): get(*pattern) -> (session-corrected time, median rating,
+    n sessions) or None, for the focus plans; info = summary line."""
     ts = [t for t in trials() if t.get("plan") in FOCUS_PLANS]
-    if not ts:
-        print("no trials of the focus plans yet")
-        return
     ct = cycle_times(ts)
     ratings = collections.defaultdict(list)
     for t in ts:
@@ -246,10 +241,10 @@ def focus():
     # focus sessions share few or no patterns with each other
     cts = [t for t in trials(control=True) if t["session"] in sessions]
     cc = cycle_times_all(cts)
-    sf = session_factors(cc, list(cc))
+    sf = session_factors(cc, list(cc)) if cc else {}
     sf = {s: sf.get(s, 1.0) for s in sessions}
-    print(f"{len(ts)} trials, {len(sessions)} sessions; session factors (controls): "
-          + ", ".join(f"{s[5:16]} {f:.2f}" for s, f in sf.items()))
+    info = (f"{len(ts)} trials, {len(sessions)} sessions; session factors (controls): "
+            + ", ".join(f"{s[5:16]} {f:.2f}" for s, f in sf.items()))
 
     def get(*pattern):
         """(time, median rating, n sessions) or None."""
@@ -258,6 +253,18 @@ def focus():
             return None
         v = [x / sf.get(s, 1.0) for s, x in ct[c].items()]
         return math.exp(st.mean(math.log(x) for x in v)), st.median(ratings[c]), len(v)
+    return get, info
+
+
+def focus():
+    """Session-corrected cycle times (geometric mean over sessions, ms) and
+    median ratings of the focus plans, with the differences that map onto
+    the optimizer's parameters. Whole-cycle times of 'a b Spc'."""
+    get, info = focus_data()
+    if info.startswith("0 trials"):
+        print("no trials of the focus plans yet")
+        return
+    print(info)
 
     def cell(r, ref=None):
         if r is None:
