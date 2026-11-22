@@ -1,4 +1,4 @@
-# Handoff (2026-11-22)
+# Handoff (2026-11-22, midday)
 
 One-handed right-hand layout for a Model 100, optimized from timed
 measurements with discomfort ratings. The pipeline runs end to end:
@@ -42,44 +42,61 @@ reasons in [docs/design-principles.md](docs/design-principles.md) (decision log)
   Latest free run (2026-11-22 model, 241.1): base
   `· \` d - ℙ ·` / `k o r g p l` / `s e i t n m` / `w a z h c /`.
   Not exported: too many guessed costs.
-- **Thumbs** (user): innermost first Shift, layer key, Space; outermost
-  (hard to reach) for Alt/Super or the one-shot key, undecided. Layer key
-  planned as a Kaleidoscope one-shot layer key (tap = next key from
-  layer 2, hold = layer 2).
-- **Ctrl:** dual-use on a pinky home key (tap = Polish one-shot, hold =
-  Ctrl) + a backup Ctrl. Test the one-shot key alone first. Must work
-  with function-layer cursor keys, Backspace, Tab, Return (Shift too
-  with Tab and Return). Unmodelled: roll misfires, Ctrl shortcuts on
-  pinky-column letters, Ctrl+Shift+V with v/x on layer 2 (one-shot
-  modifiers would make it sequential taps). Firmware: Chrysalis dual-use
-  only takes a plain tap key; tap = one-shot layer needs a Qukey in the
-  sketch *(guess, to check)*.
+- **Measurements (2026-11-22):** round 1 of focus-1 to 9 and focus-13
+  done. Protocol 3 since today (continuous trials, highlighted key always
+  next, streaks of 4+ clean cycles with the first 2 dropped, stops when
+  10 counted cycles have settled; Bsp = start the pattern again; half
+  ratings = two neighbouring numbers pressed together; 1 s blank before
+  the rating; one round per day; `--plan a,b,c` alternates plans).
+  History and reasons: docs/measurement-plan.md, Protocol. Edited
+  trials carry `rating_edited` or `status: discarded` + reason.
+  - focus-8 (index c2 + ring): index up + ring down rated 3-5, the
+    reverse 1-2. The same split as index-middle (focus-1: fitted
+    `sc_index_up` 177, `sc_middle_up_i` 0). The user suspects it may b## Next steps
 
-## Next steps
+1. **Fit far scissors and the c1 + ring stretch** (started, not done):
+   - `analysis/measurements.py`: `FOCUS_PLANS` ends at focus-7, so
+     focus-8 to 13 trials don't reach `focus_data()` (report and fit)
+     yet. Add them (and `scissors-far`, `pinky-reach`, `spread-ip`,
+     `oneshot-pairs`), then add report sections for focus-8, 9, 13.
+   - `optimizer/model.py`: split `sc_far` by direction like the
+     adjacent scissors (inner finger up vs outer finger up, separately
+     for index-ring and middle-pinky), maybe its own full (top-bottom)
+     factor; add a cost for index c1 with the ring (today only `lateral`
+     for c1 + middle and `spread_ip` for c1 + pinky exist, so c1 + ring
+     is priced like c2 + ring plus the c1 effort).
+   - `optimizer/fit.py`: estimates from focus-8/9 (vs home-home, same
+     order) and focus-13 (vs the focus-8 pattern with the index in c2,
+     same rows); also `space_top` from focus-6 (report section exists:
+     Space next to the top row ~85 ms extra with index first, ~56 with
+     middle first).
+   - Then the sensitivity sweep on the new parameters (wrapper that
+     loads `fitted.json`: sweep.py itself uses model.py guesses only).
+2. **Re-optimize and export the second test layout** (layers 3-5;
+   `export_layout.py` refuses non-empty layers: clear them or use
+   `--base`). Keep the user's thumb plan; place the one-shot key on
+   r2c6 if the user still wants it there. The user wants a layout to try
+   soon: focus-10/11 guesses cost < 0.6 ms/char if wrong, so they can
+   wait; the one-shot layer key isn't modelled yet (step 4) and can
+   stay a held layer key in the model for now.
+3. **Measurements still to do** (the user; pause keystats; the hand
+   needed a longer rest after focus-13): `python3 measure/measure.py run
+   --plan focus-12,focus-11,focus-10` (mixed: similar movements in a row
+   tire the hand). focus-12 = thumb vs pinky one-shot before pairs (12).
+   Rounds 2-3 of everything on later days, one round per day.
+4. **Model the one-shot layer key** from focus-7 (+ focus-12):
+   `fit.cycle_cost` skips tapped layer keys now. Look at per-transition
+   splits to place the cost (a one-shot + letter behaves like one unit:
+   fast inside, the cost in the reset before it), fit its size from whole
+   cycles.
+5. **Visualize the costs for the user to check against their
+   impressions** (asked 2026-11-22): per-key effort on the grid, plus
+   click a key to see the cost to every other key and back, split into
+   time and discomfort. An artifact page from `model.pos_cost` with the
+   fitted params.
+6. **Analyse typing-test runs** (above) and later everyday keylogs.
 
-1. **Measurements** (the user; pause keystats). Protocol 3 since
-   2026-11-22: continuous typing, the highlighted key is always next,
-   stops when the speed settles; one round per day
-   (docs/measurement-plan.md, Protocol). `python3 measure/measure.py
-   run --plan focus-N` (several plans: `--plan focus-10,focus-11,focus-12`
-   alternates them). Done round 1: focus-1 to 9, focus-13 (+ its 2
-   bottom-bottom patterns to do). To do, in this order
-   (by sensitivity, `analysis/sensitivity-2026-11-22-focus-guesses.tsv`):
-   - `focus-8` index-ring scissors (14), `focus-9` middle-pinky (14),
-     both done 2026-11-22: `sc_far` decides the layout (×4 of the guess:
-     regret 11 ms/char). focus-8: index up + ring down rated 3-5, the
-     reverse 1-2 (one round; the same split as index-middle in focus-1;
-     user suspects possible measurement error: check in rounds 2-3);
-   - `focus-13` index c1 + ring (16, done but bottom-bottom): the `n o`
-     of the test layout (ring top, index c1 bottom); the model has no
-     term for c1 + ring;
-   - `focus-12` thumb vs pinky one-shot before pairs (12): where the
-     one-shot key goes (not in the model yet, so not swept);
-   - `focus-11` index c1 + pinky (12), `focus-10` pinky reach (16): their
-     guesses cost < 0.6 ms/char if wrong; optional before the second
-     test layout;
-   - rounds 2-3 of focus-1 to 5 on other days.
-   Then `python3 analysis/measurements.py focus` (add report sections for
+n `python3 analysis/measurements.py focus` (add report sections for
    focus-8 to 11) and extend `optimizer/fit.py`: `sc_far`, `spread_ip`,
    pinky efforts, one-shot cost, and **top-home vs home-bottom scissors**
    (user: home-bottom generally worse, sometimes much; the model treats
