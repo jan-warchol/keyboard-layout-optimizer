@@ -34,7 +34,7 @@ references it needs, `measure.py run --plan focus-N`:
 | `focus-10` | `pinky-reach` (16): index or middle at home with pinky home / top / c6 home / c6 top, both orders, + Space |
 | `focus-11` | `spread-ip` (12): index c1 with pinky c5, home / bottom rows, both orders, + Space, vs index in c2 |
 | `focus-12` | `oneshot-pairs` (12): Sft or the pinky (r2c6) tapped before home-row pairs, `Sft a b` and `; a b`: thumb vs pinky one-shot |
-| `focus-13` | `scissors-far` with the index in c1 (14): index stretch column with ring c4, the same rows as `focus-8`; `n o` in the first test layout was ring top + index c1 bottom, which `focus-8` (index in c2) didn't cover, and the model prices c1 + ring like c2 + ring (no lateral term) |
+| `focus-13` | `scissors-far` with the index in c1 (16): index stretch column with ring c4, the same rows as `focus-8` + bottom-bottom (a stretch with the index in c1; added after the first run); `n o` in the first test layout was ring top + index c1 bottom, which `focus-8` (index in c2) didn't cover, and the model prices c1 + ring like c2 + ring (no lateral term) |
 
 `focus-8` to `focus-11` (added after the first typing test, 2026-11-21):
 the user found `n o` (ring top, index bottom) straining, about 4 of 5,
@@ -466,8 +466,9 @@ Recompute with `python3 analysis/measurements.py report`.
     35%). A wrong key invalidates the transition into it.
 - **Discomfort rating** after every trial, on the top row `. u i o b`:
   1 effortless · 2 fine · 3 some effort · 4 uncomfortable · 5 strain.
-  Since 2026-11-22 halves too: two neighbouring numbers (3 then 4 = 3.5),
-  saved as 3.5 (user: some patterns fall in between).
+  Since 2026-11-22 halves too: two neighbouring numbers pressed together,
+  overlapping (3+4 = 3.5; user: some patterns fall in between). One after
+  the other selects the second: that gave halves by accident.
   After a trial the screen goes blank for 1 s, keys ignored (typing on
   past the end once rated a trial by accident: `o` = 4, Space = confirm;
   that trial is marked `discarded`).
@@ -478,6 +479,10 @@ Recompute with `python3 analysis/measurements.py report`.
   2026-11-22 each round is on a separate day: a session skips patterns
   already measured that day, and rounds = days with an ok trial (`run
   --repeats`, default 3).
+- **Mix movements within a session** (user, 2026-11-22): similar
+  patterns in a row tire the hand the same way. `run --plan a,b,c`
+  alternates between plans (each trial records its own plan); within a
+  plan, consecutive patterns share as few fingers as possible.
 - **Stretches and breaks:** 3-minute stretches (pauses not counted), then a
   30 s break with a countdown; continue or finish with the end controls;
   at most 5 stretches.

@@ -340,10 +340,14 @@ def scissors_far_plan(cols=(2, 3), index_col=2):
     14 patterns per pair. Home-bottom is kept: the user finds it generally
     worse than top-home, sometimes much worse. index_col=1: the index in
     its stretch column instead (with the ring, c4): 'n o' in the first test
-    layout was ring top + index c1 bottom (user, 2026-11-22)."""
+    layout was ring top + index c1 bottom (user, 2026-11-22). With the index
+    in c1, bottom-bottom is a stretch too: added (16 patterns)."""
     pats = []
+    rows = ((1, 2), (2, 1), (2, 3), (3, 2), (1, 3), (3, 1), (2, 2))
+    if index_col == 1:
+        rows += ((3, 3),)
     for c in cols:
-        for ra, rb in ((1, 2), (2, 1), (2, 3), (3, 2), (1, 3), (3, 1), (2, 2)):
+        for ra, rb in rows:
             a, b = f"r{ra}c{index_col if c == 2 else c}", f"r{rb}c{c + 2}"
             pats += [(a, b, "t4"), (b, a, "t4")]
     return [canonical(p) for p in pats]
@@ -522,7 +526,7 @@ FOCUS_SPLIT = {
     "focus-10": lambda: pinky_reach_plan(),                                  # 16
     "focus-11": lambda: spread_ip_plan(),                                    # 12
     "focus-12": lambda: oneshot_pairs_plan(),                                # 12
-    "focus-13": lambda: scissors_far_plan(cols=(2,), index_col=1),           # 14
+    "focus-13": lambda: scissors_far_plan(cols=(2,), index_col=1),           # 16
 }
 
 
@@ -858,6 +862,7 @@ def ask_rating(kb, header):
             if pos == "quit":
                 return "quit"
     choice = None
+    held = set()    # rating keys down now: a half needs two pressed together
     while True:
         if choice is None:
             status = "   (no rating selected)"
@@ -869,19 +874,30 @@ def ask_rating(kb, header):
                       "   → Spc / Ent to confirm, another number to change")
         screen(header, "", "   How did that feel?", "",
                f"   top row (. u i o b):  {RATING_TEXT}",
-               "   in between: two neighbouring numbers, e.g. 3 then 4 = 3½",
+               "   in between: two neighbouring numbers pressed together, e.g. 3+4 = 3½",
                "   Bsp = redo,   Del = skip (mark as weird)", "", status)
-        pos, _ = kb.next_press()
-        if pos == "quit":
-            return "quit"
+        pos = None
+        for p, down, _t in kb.events(None):
+            if p == "quit":
+                return "quit"
+            if p == "blur":
+                continue
+            if not down:
+                held.discard(p)
+                continue
+            pos = p
+            break
+        if pos is None:
+            continue
         if pos in RATING_KEYS:
             r = RATING_KEYS[pos]
-            # a neighbouring number after a whole one: the half in between
-            # (user, 2026-11-22); after a half, or any other number: that number
-            if choice is not None and choice == int(choice) and abs(r - choice) == 1:
-                choice = (r + choice) / 2
-            else:
-                choice = r
+            # a neighbouring number pressed while this one is still held: the
+            # half in between (one after the other gave halves by accident;
+            # user, 2026-11-22); otherwise that number
+            other = [RATING_KEYS[h] for h in held if h in RATING_KEYS
+                     and abs(RATING_KEYS[h] - r) == 1]
+            choice = (r + other[0]) / 2 if other else r
+            held.add(pos)
         elif pos in CONFIRM_KEYS and choice is not None:
             return choice
         elif pos == REDO_KEY:
@@ -905,17 +921,21 @@ def cmd_run(args):
     os.makedirs(DATA, exist_ok=True)
     # canonical pattern -> days with an ok trial (protocol 2 on): each round on
     # a separate day (user, 2026-11-22); patterns measured today are skipped
-    days = collections.defaultdict(set)
     today = datetime.date.today().isoformat()
-    for t in load_trials():
-        if args.plan in OWN_COUNT and not args.patterns and t.get("plan") != args.plan:
-            continue
-        if t.get("protocol", 1) >= 3 and cycle_time(t) is None:
-            continue    # never settled into counted cycles: not done
-        if t["status"] == "ok" and not t.get("control") and t.get("protocol", 1) >= PROTOCOL_DONE:
-            days[canonical(t["pattern"])].add(t["time"][:10])
-    done = {c: len(d) for c, d in days.items()}
-    done_today = {c for c, d in days.items() if today in d}
+    trials_all = load_trials()
+
+    def done_days(name):
+        """canonical pattern -> days with an ok trial counting for plan `name`."""
+        days = collections.defaultdict(set)
+        for t in trials_all:
+            if name in OWN_COUNT and t.get("plan") != name:
+                continue
+            if t.get("protocol", 1) >= 3 and cycle_time(t) is None:
+                continue    # never settled into counted cycles: not done
+            if t["status"] == "ok" and not t.get("control") and t.get("protocol", 1) >= PROTOCOL_DONE:
+                days[canonical(t["pattern"])].add(t["time"][:10])
+        return days
+
     if args.patterns:
         with open(args.patterns) as f:
             plan = [canonical(["+".join(LABEL_TO_POS.get(y, y) for y in x.split("+"))
@@ -924,28 +944,53 @@ def cmd_run(args):
         bad = {p for pat in plan for e in pat for p in e.split("+") if p not in LABEL}
         if bad:
             sys.exit(f"unknown keys in {args.patterns}: {sorted(bad)}")
+        plan_names = [None]
+        plans = {None: plan}
     else:
-        plan = PLANS[args.plan]()
-    plan_name = None if args.patterns else args.plan
-    if plan_name in FIXED_ORDER:
+        plan_names = args.plan.split(",")
+        unknown = [p for p in plan_names if p not in PLANS]
+        if unknown:
+            sys.exit(f"unknown plans: {unknown}; choose from {sorted(PLANS)}")
+        plans = {p: PLANS[p]() for p in plan_names}
+    plan_of = {}        # todo pattern -> the plan it is recorded under
+    if len(plan_names) == 1 and plan_names[0] in FIXED_ORDER:
         # planned order; resume after the trials already done (repeats counted)
-        prior = collections.Counter(canonical(t["pattern"]) for t in load_trials()
+        plan_name = plan_names[0]
+        plan = plans[plan_name]
+        prior = collections.Counter(canonical(t["pattern"]) for t in trials_all
                                     if t.get("plan") == plan_name and t["status"] == "ok")
         seen, todo = collections.Counter(), []
         for p in plan:
             seen[canonical(p)] += 1
             if seen[canonical(p)] > prior[canonical(p)]:
                 todo.append(p)
+        plan_of = {p: plan_name for p in todo}
         total_plan = len(plan)
         measured = total_plan - len(todo)
     else:
         # each pattern at most once per day; least-measured first
-        todo = [p for p in plan if done.get(p, 0) < args.repeats and p not in done_today]
-        random.shuffle(todo)
-        todo.sort(key=lambda p: (done.get(p, 0), tier(p)))
-        todo = spread_fingers(todo, done)
-        total_plan = len(plan) * args.repeats
-        measured = sum(min(v, args.repeats) for p, v in done.items() if p in set(plan))
+        per_plan, total_plan, measured = {}, 0, 0
+        for name in plan_names:
+            days = done_days(name)
+            done = {c: len(d) for c, d in days.items()}
+            items = [p for p in plans[name] if done.get(p, 0) < args.repeats
+                     and today not in days.get(p, ()) and p not in plan_of]
+            random.shuffle(items)
+            items.sort(key=lambda p: (done.get(p, 0), tier(p)))
+            per_plan[name] = spread_fingers(items, done)
+            plan_of.update({p: name for p in items})
+            total_plan += len(plans[name]) * args.repeats
+            measured += sum(min(v, args.repeats) for p, v in done.items() if p in set(plans[name]))
+        # several plans: alternate between them, so consecutive patterns
+        # measure different movements (similar ones tire the hand the same
+        # way; user, 2026-11-22); the plan with most left goes first
+        todo, last = [], None
+        while any(per_plan.values()):
+            left = [n for n in plan_names if per_plan[n]]
+            pick = max(left, key=lambda n: (n != last or len(left) == 1,
+                                            len(per_plan[n]) / len(plans[n])))
+            todo.append(per_plan[pick].pop(0))
+            last = pick
 
     session = datetime.datetime.now().isoformat(timespec="seconds")
     kb = Keyboard()
@@ -961,7 +1006,7 @@ def cmd_run(args):
         """Measuring time in the current stretch, pauses excluded."""
         return time.time() - t_stretch - paused_s
 
-    def measure(pattern, control, label):
+    def measure(pattern, control, label, plan_name=None):
         """Run one trial until saved or abandoned: returns 'ok', 'skipped' or 'quit'."""
         nonlocal n, last_summary, paused_s
         while True:
@@ -1024,6 +1069,7 @@ def cmd_run(args):
         if controls("start") == "quit":
             return
         while todo:
+            plan_name = plan_of.get(todo[0])
             if plan_name in AS_PLANNED:
                 pattern = list(todo[0])
             elif plan_name in SPACE_LAST:
@@ -1032,7 +1078,8 @@ def cmd_run(args):
                 pattern = display_order(todo[0])
             if len(pattern) == 2 and random.random() < 0.5:
                 pattern.reverse()   # balance which key comes first
-            status = measure(pattern, False, f"trial {measured + 1}/{total_plan}")
+            status = measure(pattern, False, f"trial {measured + 1}/{total_plan}"
+                             + (f"  ({plan_name})" if len(plan_names) > 1 else ""), plan_name)
             if status == "quit":
                 screen("Ending the session.", "",
                        "   Any measurement key: run the end controls first.",
@@ -1298,7 +1345,9 @@ def main():
                    help=f"at most this many {STRETCH_S // 60}-minute stretches, "
                         f"with {BREAK_S} s breaks in between")
     r.add_argument("--patterns", help="file with one pattern per line, e.g. 'r2c2 r2c3 r1c4'")
-    r.add_argument("--plan", choices=sorted(PLANS), default="phase1")
+    r.add_argument("--plan", default="phase1",
+                   help="plan name, or several separated by commas: their patterns alternate "
+                        f"(choices: {', '.join(sorted(PLANS))})")
     r.add_argument("--repeats", type=int, default=3,
                    help="target number of days on which each pattern is measured (one round a day)")
     sub.add_parser("stats")

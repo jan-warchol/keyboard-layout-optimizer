@@ -61,15 +61,18 @@ reasons in [docs/design-principles.md](docs/design-principles.md) (decision log)
    2026-11-22: continuous typing, the highlighted key is always next,
    stops when the speed settles; one round per day
    (docs/measurement-plan.md, Protocol). `python3 measure/measure.py
-   run --plan focus-N`. Done: focus-1 to 7 round 1. To do, in this order
+   run --plan focus-N` (several plans: `--plan focus-10,focus-11,focus-12`
+   alternates them). Done round 1: focus-1 to 9, focus-13 (+ its 2
+   bottom-bottom patterns to do). To do, in this order
    (by sensitivity, `analysis/sensitivity-2026-11-22-focus-guesses.tsv`):
-   - `focus-8` index-ring scissors (14, done 2026-11-22), `focus-9`
-     middle-pinky (14): `sc_far` decides the layout (×4 of the guess:
+   - `focus-8` index-ring scissors (14), `focus-9` middle-pinky (14),
+     both done 2026-11-22: `sc_far` decides the layout (×4 of the guess:
      regret 11 ms/char). focus-8: index up + ring down rated 3-5, the
      reverse 1-2 (one round; the same split as index-middle in focus-1;
      user suspects possible measurement error: check in rounds 2-3);
-   - `focus-13` index c1 + ring (14): the `n o` of the test layout (ring
-     top, index c1 bottom); the model has no term for c1 + ring;
+   - `focus-13` index c1 + ring (16, done but bottom-bottom): the `n o`
+     of the test layout (ring top, index c1 bottom); the model has no
+     term for c1 + ring;
    - `focus-12` thumb vs pinky one-shot before pairs (12): where the
      one-shot key goes (not in the model yet, so not swept);
    - `focus-11` index c1 + pinky (12), `focus-10` pinky reach (16): their
