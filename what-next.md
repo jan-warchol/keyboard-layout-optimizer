@@ -22,7 +22,7 @@ reasons in [docs/design-principles.md](docs/design-principles.md) (decision log)
   docs/optimizer.md. Not typed yet.
 - **Cost visualization** (asked 2026-11-22): https://claude.ai/artifact/VbeKkTnEtAXju5UxtdRp26
   (private), from `uv run optimizer/cost_view.py` → `analysis/cost-view.html`.
-  Not reviewed by the user yet.
+  Not reviewed by the user yet: next step 1.
 - **First test layout** (Polish one-shot key, 2026-11-21) is on layers 3-5
   of `Keyboardio-Model-100_layout_2026-11-21_optimized-test.json`
   (saved as `optimizer/layouts/2026-11-21-oneshot.json`; export with
@@ -72,10 +72,19 @@ reasons in [docs/design-principles.md](docs/design-principles.md) (decision log)
 
 ## Next steps
 
-1. **The user types the second test layout** (load the file, place the
-   layer keys, `python3 measure/measure.py type --layout NAME`) and checks
-   the cost map against their impressions. Their remarks go into the
-   decision log and the model.
+1. **Get the user's feedback on the cost map** (not seen yet; the user
+   will look later): https://claude.ai/artifact/VbeKkTnEtAXju5UxtdRp26.
+   Ask which costs look wrong against their impressions: key efforts
+   (all guesses), transitions from/to a key they know well (e.g. the
+   pinky keys of `l g`, the index stretch column), the time / discomfort
+   / guess split. Record remarks in the decision log, mark the
+   parameters they question, feed them into the model or measurement
+   plans. Regenerate after model changes: `uv run optimizer/cost_view.py`,
+   then republish `analysis/cost-view.html` to the same URL (its labels
+   predate the user's `( ) : ^` edits; letters are unchanged).
+   The second test layout is in everyday use (3 typing runs, impressions
+   in the decision log); keep collecting typing runs
+   (`python3 measure/measure.py type --layout opt-2026-11-22`).
 2. **Measurements still to do** (the user; pause keystats):
    `python3 measure/measure.py run --plan focus-12,focus-11,focus-10`
    (mixed: similar movements in a row tire the hand). Rounds 2-3 of
