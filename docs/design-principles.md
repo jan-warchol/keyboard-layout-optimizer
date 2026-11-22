@@ -394,3 +394,19 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   - Chrysalis has no one-shot modifier option in its UI: the user will
     ask for a keymap file with one-shot Ctrl/Shift (key codes 49153 and
     49154) later.
+- **2026-11-22, more typing runs** (user, runs 2-3 on the second test
+  layout: 473 → 310 → 256 s for the same text): starting to like it.
+  - `l` (pinky top, r1c5) and `g` (pinky stretch top, r1c6) feel wrong
+    there, though maybe there is no better place. Efforts of those keys
+    are guesses until focus-10.
+  - Layer-2 keys on easy positions (index, middle, ring columns in the
+    top, home and bottom rows, and pinky home) are easier than expected,
+    with the one-shot layer key. Maybe the layer cost is lower and one
+    or two letters could move to layer 2 *(impression from a short
+    trial)*. Data so far: focus-7, a one-shot before one letter of a
+    home-row triple, +96 to +443 ms, median ~350 (held: ~400), rated 1-2:
+    the layer cost is time, hardly discomfort. In the typing runs,
+    base → layer-2 letter took a median ~1140 ms vs ~380 base → base,
+    still a learning stage.
+  - `~` alone on a key is possible: the key sends Shift + `` ` ``. Then
+    `` ` `` needs a key of its own (it is rare, 0.03%).

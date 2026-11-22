@@ -94,6 +94,28 @@ reasons in [docs/design-principles.md](docs/design-principles.md) (decision log)
    to physical keys via the layout file (layer keys and one-shot send
    nothing; infer them from the next character).
 
+## Model gaps (to do; the user, 2026-11-22: "quite a few combinations
+## we didn't account for")
+
+- **Shift by key:** Shift costs a flat 404 ms everywhere (derived from
+  the layer key, a guess). Shift + some keys is much worse than others
+  (index number row bad, outer keys easier). Needs a Shift plan like
+  `layer-fingers`, with off-home keys.
+- **Layer 2 with the one-shot key:** the model prices layer 2 as a held
+  key (404). Fit the one-shot cost from focus-7 (median ~350, rated 1-2)
+  and focus-12; check whether easy layer-2 positions deserve letters.
+- **One-shot Polish key by next finger:** ring/pinky letters after the
+  pinky one-shot are awkward (see open questions).
+- **Pinky top keys** (`l` r1c5, `g` r1c6 feel wrong): focus-10.
+- **Paired symbols adjacent** (`( )`, `[ ]`, `{ }`): no model term.
+- **Flow:** the first test layout flowed better, with more stretches;
+  the model has bigrams only (no rolls, trigrams).
+- **Thumbs:** the model puts Space on t4; the user now has it innermost.
+- **Shortcuts:** Ctrl + letter comfort isn't modelled.
+- **Typing runs as data:** typing.jsonl has 3 runs on this layout. Odd:
+  Space → Space within ~25 ms (27 times in the first run, 3-4 later):
+  double Space events? Check before analysing.
+
 ## Open questions for the user
 
 - **Polish letters on ring/pinky keys** (2026-11-22, after the second
