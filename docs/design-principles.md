@@ -380,3 +380,17 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   row; `^` to layer-2 r0c5. The model rates the change +0.46 ms/char
   (noise); it has no notion of pairs belonging together *(possible model
   term: adjacency of paired symbols)*.
+- **2026-11-22, second test layout, impressions** (user): the first test
+  layout flowed better but had more unwanted stretches; this one is
+  better overall. Issues:
+  - `` ` ~ `` on the index number-row key: `~` is frequent (0.07% vs
+    0.03% for `` ` ``) and Shift + index number row is bad. The user may
+    move the pair to the number-row c6 key (typed by the ring finger),
+    easier with Shift. The model prices both keys at 500 (guess) and
+    rates the move +0.3 ms/char.
+  - Polish letters whose Latin key is under the ring or pinky (ł ń ć ż
+    with the one-shot key on the pinky, r2c6) are awkward. Open question,
+    see what-next.md.
+  - Chrysalis has no one-shot modifier option in its UI: the user will
+    ask for a keymap file with one-shot Ctrl/Shift (key codes 49153 and
+    49154) later.

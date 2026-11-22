@@ -96,6 +96,19 @@ reasons in [docs/design-principles.md](docs/design-principles.md) (decision log)
 
 ## Open questions for the user
 
+- **Polish letters on ring/pinky keys** (2026-11-22, after the second
+  test layout): ℙ on r2c6 makes ł ń ć ż awkward. Options: (a) move the
+  one-shot key to the index stretch column. Swapping it with `m` (r1c1)
+  costs +0.55 ms/char, re-optimizing with it pinned there gives 244.3
+  (vs 245.5, but every letter moves); swapping with `w` (r3c1) +2.5.
+  With it on the index, ą ę ó become same-finger pairs (a e o are index
+  letters). (b) Polish letters on keys of their own near the index, no
+  longer on their Latin letters. (c) the one-shot key on a thumb. The
+  model doesn't price the one-shot key itself yet (step 3): measure
+  focus-12 (thumb vs pinky one-shot) before deciding.
+- **One-shot Ctrl and Shift**: not in the Chrysalis UI; the user will ask
+  for a keymap file with codes 49153 (Ctrl) / 49154 (Shift) on the thumbs.
+
 - When did dictation start for notes? The cut is 2026-07-01, from note
   lengths.
 - Outermost thumb key: Alt/Super, or the Polish one-shot key?
