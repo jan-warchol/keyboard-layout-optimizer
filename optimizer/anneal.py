@@ -133,6 +133,14 @@ class Problem:
             # one-shot key pinned (e.g. dual-use: tap = one-shot, hold = Ctrl)
             self.fixed_slot[self.uidx[DK]] = self.S.index[(dk_pos, 0, 0)]
             self.fixed_slot[self.uidx[DK_UP]] = self.S.index[(dk_pos, 0, 1)]
+            # after the one-shot key, the Polish layer has every Polish letter
+            # on the physical key of its Latin letter, so a Latin letter from
+            # layer 2 is typed without the layer key: no layer switch. Only
+            # the one-shot key's slots start such transitions (rows of C).
+            for sl in (self.S.index[(dk_pos, 0, 0)], self.S.index[(dk_pos, 0, 1)]):
+                for j, (_q, lq, _sq) in enumerate(self.S.slots):
+                    if lq:
+                        self.S.C[sl, j] -= P["layer"]
         self.cells = [(pos, l) for pos in GRID for l in (0, 1)
                       if pos not in PINNED_POS and (pos, l) != (dk_pos, 0)]
         self.sym_halves = ([self.S.index[(pos, l, 0)] for pos, l in self.cells]
@@ -178,6 +186,31 @@ class Problem:
         for sym, h in zip(self.symbols, halves):
             slot_of[self.uidx[sym]] = h
         return slot_of
+
+    def to_json(self, slot_of, description, score):
+        """The layout file format of optimizer/layouts (export_layout.py)."""
+        keys = [{"pos": pos, "layer": layer, "shift": shift, "char": ch}
+                for (pos, layer, shift), ch in sorted(self.layout(slot_of).items())]
+        return {"description": description, "score": score, "polish": self.mode,
+                "polish_map": dict(POLISH) if self.mode == "oneshot" else {},
+                "params": {k: self.P[k] for k in sorted(self.P)}, "keys": keys}
+
+    def from_json(self, lay):
+        """slot_of of a saved layout; units the layout lacks get free halves."""
+        slot_of = np.zeros(len(self.units), dtype=int)
+        for u, s in self.fixed_slot.items():
+            slot_of[u] = s
+        placed = set()
+        for k in lay["keys"]:
+            if k["char"] in self.uidx and self.uidx[k["char"]] not in self.fixed_slot:
+                slot_of[self.uidx[k["char"]]] = self.S.index[(k["pos"], k["layer"], k["shift"])]
+                placed.add(self.uidx[k["char"]])
+        used = {slot_of[u] for u in placed} | set(self.fixed_slot.values())
+        free = [h for h in self.sym_halves if h not in used]
+        missing = [u for u in range(len(self.units)) if u not in placed and u not in self.fixed_slot]
+        for u, h in zip(missing, free):
+            slot_of[u] = h
+        return slot_of, [self.units[u] for u in missing]
 
     def score(self, slot_of):
         C = self.S.C[np.ix_(slot_of, slot_of)]
@@ -400,6 +433,9 @@ def main():
     ap.add_argument("--space", choices=("thumb", "grid"), default="thumb",
                     help="Space on the thumb (t4) or on a finger key in the grid")
     ap.add_argument("--dk-pos", help="pin the Polish one-shot key to this grid position, e.g. r2c5")
+    ap.add_argument("--save", help="write the best layout here (optimizer/layouts format)")
+    ap.add_argument("--description", default="")
+    ap.add_argument("--score", help="only score this saved layout under the given parameters")
     a = ap.parse_args()
     P = dict(PARAMS)
     if a.params:
@@ -409,11 +445,25 @@ def main():
         k, v = kv.split("=")
         assert k in P, k
         P[k] = float(v)
+    if a.score:
+        lay = json.load(open(a.score))
+        dk = next((k["pos"] for k in lay["keys"] if k["char"] == DK and a.dk_pos), None)
+        prob = Problem(P, polish=lay["polish"], space=a.space, dk_pos=dk)
+        slot_of, missing = prob.from_json(lay)
+        print(f"score {prob.score(slot_of):.2f} ms/char"
+              + (f" (not in the layout, put anywhere: {''.join(missing)})" if missing else ""))
+        print(prob.show(slot_of))
+        return
     prob, res = run(P, a.restarts, a.steps, a.seed, a.space, a.dk_pos)
     print("symbols placed:", "".join(prob.symbols))
     for slot_of, s in res:
         print(f"score {s:.2f} ms/char")
     print(prob.show(res[0][0]))
+    if a.save:
+        with open(a.save, "w") as f:
+            json.dump(prob.to_json(res[0][0], a.description, res[0][1]), f, indent=1,
+                      ensure_ascii=False)
+        print(f"-> {a.save}")
 
 
 if __name__ == "__main__":

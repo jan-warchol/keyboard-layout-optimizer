@@ -227,7 +227,8 @@ def warmup(plan="pilot-chain"):
 
 FOCUS_PLANS = {"scissors", "scissors-im", "lateral", "sf-index", "layer", "layer-fingers",
                "space-row", "oneshot", "oneshot-space", "focus-1", "focus-2", "focus-3", "focus-4", "focus-5",
-               "focus-6", "focus-7", "focus-12", "oneshot-pairs"}
+               "focus-6", "focus-7", "focus-8", "focus-9", "focus-10", "focus-11", "focus-12",
+               "focus-13", "oneshot-pairs", "scissors-far", "pinky-reach", "spread-ip"}
 ROW = {1: "top", 2: "home", 3: "bottom"}
 
 
@@ -383,6 +384,25 @@ def focus():
             sp0, rg0 = [tuple(x.replace(f"r{r}", "r2") for x in pat) for pat in (sp, rg)]
             print(f"  {ROW[r]:>8}{'':6}{cell(get(*sp), get(*sp0)):>15}"
                   f"{cell(get(*rg), get(*rg0)):>15}")
+
+    print("\nFAR SCISSORS (a finger skipped): cycle 'a b Spc' ms, diff vs home-home"
+          "\n  in the same order (median rating); rows: inner finger, columns: outer finger")
+    for label_, ci, co in (("index c2 + ring", 2, 4), ("middle + pinky", 3, 5),
+                           ("index c1 + ring", 1, 4)):
+        for order in ("inner first", "outer first"):
+            print(f"  {label_}, {order}")
+            print("  " + " " * 8 + "".join(f"{ROW[r]:>15}" for r in (1, 2, 3)))
+            for ri in (1, 2, 3):
+                out = []
+                for ro in (1, 2, 3):
+                    a, b = f"r{ri}c{ci}", f"r{ro}c{co}"
+                    a0, b0 = f"r2c{ci}", f"r2c{co}"
+                    pat, ref = ((a, b, "t4"), (a0, b0, "t4")) if order == "inner first" \
+                        else ((b, a, "t4"), (b0, a0, "t4"))
+                    out.append(cell(get(*pat), get(*ref) if pat != ref else None))
+                print(f"  {ROW[ri]:>8}" + "".join(f"{x:>15}" for x in out))
+    print("  index c1 + ring: diff vs home-home with the index in c1 (the c1 cost cancels);"
+          "\n  compare with index c2 + ring for the extra cost of the stretch column.")
 
 
 if __name__ == "__main__":

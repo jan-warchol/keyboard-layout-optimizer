@@ -53,17 +53,21 @@ def cycle_cost(pattern, P):
 
 
 def estimate(name, pairs, get, k, P):
-    """Median estimate of parameter `name` over (pattern, reference) pairs."""
+    """Median estimate of parameter `name` over (pattern, reference) pairs.
+    A pair may also be a list of (sign, pattern) terms: a double difference
+    (space_top: Space pattern minus its home-row version, minus the same
+    for the ring finger in place of Space)."""
     vals = []
-    for pat, ref in pairs:
-        m, r = get(*pat), get(*ref)
-        if not m or not r:
+    for pair in pairs:
+        terms = [(1, pair[0]), (-1, pair[1])] if isinstance(pair, tuple) else pair
+        ms = [get(*pat) for _, pat in terms]
+        if not all(ms):
             continue
-        meas = m[0] - r[0] + k * (penalty(m[1]) - penalty(r[1]))
+        meas = sum(sg * (m[0] + k * penalty(m[1])) for (sg, _), m in zip(terms, ms))
         P0 = dict(P, **{name: 0.0})
         P1 = dict(P, **{name: 1.0})
-        b = cycle_cost(pat, P0) - cycle_cost(ref, P0)
-        a = (cycle_cost(pat, P1) - cycle_cost(ref, P1)) - b
+        b = sum(sg * cycle_cost(pat, P0) for sg, pat in terms)
+        a = sum(sg * cycle_cost(pat, P1) for sg, pat in terms) - b
         if a > 0:
             vals.append((meas - b) / a)
     return (st.median(vals), len(vals)) if vals else (None, 0)
@@ -110,6 +114,30 @@ def pairs_layer(n_held):
     return out
 
 
+def pairs_far(ci, co, rows, ref_col=None):
+    """Far scissors, inner finger in column ci and outer in co, (inner row,
+    outer row) in rows, both orders. Reference: home-home in the same order,
+    or with ref_col the same rows with the inner finger in column ref_col."""
+    out = []
+    for ri, ro in rows:
+        a, b = f"r{ri}c{ci}", f"r{ro}c{co}"
+        a0, b0 = ((f"r{ri}c{ref_col}", b) if ref_col else (f"r2c{ci}", f"r2c{co}"))
+        out += [((a, b, "t4"), (a0, b0, "t4")), ((b, a, "t4"), (b0, a0, "t4"))]
+    return out
+
+
+def pairs_space_top():
+    """Index-middle in the top row + Space vs the home row, minus the same
+    with the ring in place of Space (focus-6)."""
+    out = []
+    for r in (1,):
+        i, m, g = f"r{r}c2", f"r{r}c3", f"r{r}c4"
+        for sp, rg in (((i, m, "t4"), (i, m, g)), ((m, i, "t4"), (g, m, i))):
+            sp0, rg0 = [tuple(x.replace(f"r{r}", "r2") for x in p) for p in (sp, rg)]
+            out.append([(1, sp), (-1, sp0), (-1, rg), (1, rg0)])
+    return out
+
+
 def fit(k):
     get, info = focus_data()
     P = dict(PARAMS)
@@ -129,6 +157,17 @@ def fit(k):
     put("sc_full_factor", pairs_scissor([(1, 3)]), "scissors-im, index top + middle bottom")
     put("lateral", pairs_lateral(), "lateral vs index in column 2")
     put("sf_index", pairs_sf(), "sf-index vs index-middle, same rows")
+    put("space_top", pairs_space_top(), "space-row, top vs home, minus the ring version")
+    one = {"up": [(1, 2), (2, 3)], "down": [(2, 1), (3, 2)]}   # (inner row, outer row)
+    put("sc_far_index_up", pairs_far(2, 4, one["up"]), "focus-8, one row")
+    put("sc_far_ring_up", pairs_far(2, 4, one["down"]), "focus-8, one row")
+    put("sc_far_middle_up", pairs_far(3, 5, one["up"]), "focus-9, one row")
+    put("sc_far_pinky_up", pairs_far(3, 5, one["down"]), "focus-9, one row")
+    put("sc_far_full_factor", pairs_far(2, 4, [(1, 3), (3, 1)]) + pairs_far(3, 5, [(1, 3), (3, 1)]),
+        "focus-8, -9, top-bottom")
+    put("lateral_ring", pairs_far(1, 4, [(r, o) for r in (1, 2, 3) for o in (1, 2, 3)
+                                         if (r, o) not in ((1, 1), (3, 3))], ref_col=2),
+        "focus-13 vs focus-8, same rows")
     # derived *(guess)*
     derived = {
         # same thumb movement as the layer key

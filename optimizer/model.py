@@ -21,6 +21,9 @@ FINGER_NO = {"index": 1, "middle": 2, "ring": 3, "pinky": 4}
 SCISSOR = {("index", "middle"): "sc_index_up", ("middle", "index"): "sc_middle_up_i",
            ("middle", "ring"): "sc_middle_up_r", ("ring", "middle"): "sc_ring_up_m",
            ("ring", "pinky"): "sc_ring_up_p", ("pinky", "ring"): "sc_pinky_up"}
+# The same for scissors with a finger skipped.
+SCISSOR_FAR = {("index", "ring"): "sc_far_index_up", ("ring", "index"): "sc_far_ring_up",
+               ("middle", "pinky"): "sc_far_middle_up", ("pinky", "middle"): "sc_far_pinky_up"}
 
 # Grid positions the optimizer fills (r3c6 is pinned to /? and \|).
 GRID = [f"r{r}c{c}" for r in range(4) for c in range(1, 7)]
@@ -54,17 +57,23 @@ PARAMS = {
     # a full scissor (top + bottom row) costs this many one-row scissors;
     # user: clearly more than 2 *(guess)*
     "sc_full_factor": 3,
-    # scissors with a finger skipped (index-ring, middle-pinky), per row,
-    # either direction. User, typing the first test layout: 'n o' (ring
-    # top, index bottom) about 4 of 5, middle-pinky straining too:
-    # ~6 penalty × 50 ms / full factor *(guess until focus-8, -9)*
-    "sc_far": 100,
+    # scissors with a finger skipped (index-ring, middle-pinky), per row, by
+    # which finger is in the higher row (like the adjacent ones). Before
+    # focus-8/9 one guess for all, 100: the user, typing the first test
+    # layout, rated 'n o' (ring top, index bottom) about 4 of 5. Fitted
+    # since 2026-11-22 (fit.py); these are the old guess.
+    "sc_far_index_up": 100, "sc_far_ring_up": 100,
+    "sc_far_middle_up": 100, "sc_far_pinky_up": 100,
+    "sc_far_full_factor": 3,
     # index in the stretch column (c1) with the pinky: user, 2026-11-22,
     # index home + pinky home "some effort" (3), one of them in the bottom
     # row uncomfortable (4), both bottom strain (5); × factor per bottom-row
     # key *(guess until focus-10)*
     "spread_ip": 125, "spread_bottom_factor": 2.2,
     "lateral": 40,             # col 1 with middle, col 6 with ring/middle *(guess)*
+    # index in col 1 with the ring finger (focus-13): before 2026-11-22 not
+    # priced at all (like the index in col 2 + the col-1 effort)
+    "lateral_ring": 0,
     "numrow_low": 25,          # number row ↔ bottom row, half of it ↔ home *(guess)*
     # entering a key: effort by position *(guess, by feel)*
     "e_top": 8, "e_bottom": 8, "e_pinky_top": 35, "e_pinky_bottom": 25,
@@ -160,8 +169,10 @@ def pos_cost(p, q, P):
         rows = abs(rp - rq)
         cost += P[SCISSOR[(high, other)]] * (1 if rows == 1 else P["sc_full_factor"] * (rows - 1))
     if abs(FINGER_NO[fp] - FINGER_NO[fq]) == 2 and rp != rq and 0 not in (rp, rq):
+        high = fp if rp < rq else fq
+        other = fq if high == fp else fp
         rows = abs(rp - rq)
-        cost += P["sc_far"] * (1 if rows == 1 else P["sc_full_factor"] * (rows - 1))
+        cost += P[SCISSOR_FAR[(high, other)]] * (1 if rows == 1 else P["sc_far_full_factor"] * (rows - 1))
     if pair == {"index", "pinky"}:
         (ri, ci), (rk, _) = ((rp, cp), (rq, cq)) if fp == "index" else ((rq, cq), (rp, cp))
         if ci == 1 and 0 not in (ri, rk):
@@ -169,6 +180,8 @@ def pos_cost(p, q, P):
     for (a, ca), (b, _) in (((fp, cp), (fq, cq)), ((fq, cq), (fp, cp))):
         if (ca == 1 and b == "middle") or (ca == 6 and b in ("ring", "middle")):
             cost += P["lateral"]
+        if ca == 1 and b == "ring":
+            cost += P["lateral_ring"]
     if 0 in (rp, rq):
         other = max(rp, rq)
         cost += P["numrow_low"] * {0: 0, 1: 0, 2: 0.5, 3: 1}[other]

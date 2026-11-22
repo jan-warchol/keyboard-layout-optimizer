@@ -275,3 +275,60 @@ regret max 0.24; `analysis/sensitivity-2026-11-22-focus-guesses.tsv`.
 - The one-shot layer key is not modelled, so `focus-7`/`focus-12` can't be
   swept; they decide the layer key's kind and place.
 
+
+### Far scissors and the second test layout (2026-11-22)
+
+Round 1 of focus-8, -9, -13 and focus-6 fitted (`fit.py`, K = 50; one
+round only, so single patterns are noisy; `measurements.py focus`, FAR
+SCISSORS). `sc_far` split by which finger is in the higher row, like the
+adjacent scissors, with its own full (top-bottom) factor:
+
+| parameter | old | fitted | from |
+|---|---|---|---|
+| `sc_far_index_up` (index higher than ring) | 100 | 244 | focus-8, ratings 3.5-5 |
+| `sc_far_ring_up` | 100 | 0 (−41) | focus-8, ratings 1-2 |
+| `sc_far_middle_up` (middle higher than pinky) | 100 | 0 (−129) | focus-9 |
+| `sc_far_pinky_up` | 100 | 243 | focus-9, ratings 3.5-5 |
+| `sc_far_full_factor` | 3 | 2.3 | focus-8, -9 top-bottom |
+| `lateral_ring` (new: index c1 with the ring) | 0 | 259 | focus-13 vs focus-8, same rows |
+| `space_top` | 20 | 27 | focus-6, double difference vs the ring |
+
+- The direction split is the same as for index-middle (focus-1): the
+  inner (shorter-reaching) finger up strains for index-ring, the pinky up
+  for middle-pinky.
+- Middle-pinky home-home, the focus-9 reference, is itself slow and rated
+  2-3, so middle up + pinky down comes out negative. The model has no
+  term for middle + pinky at home (only `outward`) *(possible gap; check
+  in rounds 2-3)*.
+- Index c1 + ring is rated 3.5-5 in every row combination, home-home
+  too: a flat stretch cost, not a scissor. `n o` (ring top, index c1
+  bottom) was the first test layout's problem.
+- One-shot fix (`anneal.py`): with the one-shot key pinned, the Latin
+  letter after it no longer pays the layer switch when it is on layer 2
+  (the Polish layer has every Polish letter on its Latin letter's
+  physical key). Only `ż` (x on layer 2) was affected, ~1 ms/char.
+
+Second test layout (`layouts/2026-11-22-oneshot.json`, one-shot key
+pinned to r2c6, 16 restarts × 1M steps, all at the same optimum):
+245.5 ms/char; free one-shot key 242.6 (it goes back to number row c5).
+The first test layout scores 277.4 under this model.
+
+```
+base               layer 2
+· ` d - . ·        · · ; & ) ·      (number row)
+m o i n l g        ] ' k f v q
+p a s t r ℙ        [ u j = b x
+w e z h c /        ( y ^ · , \
+```
+
+Costliest remaining bigrams: `ho` (ring bottom → index top, full far
+scissor, 707 ms, 0.27%), `to` (372), `ng` (pinky stretch top).
+
+`--save PATH` writes the best layout, `--score LAYOUT` scores a saved one
+under the current parameters. `export_layout.py --replace` rewrites only
+the grid keys of layers that already hold a layout.
+
+Cost visualization: `uv run optimizer/cost_view.py` → `analysis/cost-view.html`
+(template `optimizer/cost_view.html`): key effort, and every transition
+from / to a selected key split into measured time, measured discomfort
+(fit with ratings minus fit without) and guesses, term by term.

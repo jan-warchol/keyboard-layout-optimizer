@@ -365,3 +365,11 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   with the cursor keys of the function layer; Ctrl with Backspace, Tab
   and Return; Shift with Tab and Return. Constrains where Ctrl goes (a
   pinky-held Ctrl next to right-hand cursor keys may not work).
+- **2026-11-22, far scissors fitted** (focus-8, -9, -13, round 1): the
+  direction matters as for index-middle: index higher than ring and
+  pinky higher than middle cost ~240 ms each (ratings 3.5-5), the other
+  directions nothing. Index c1 with the ring is a stretch in every row
+  (~260, ratings 3.5-5), so the model prices it like `lateral` for the
+  middle finger. Second test layout exported with the one-shot key on
+  r2c6 (2.9 ms/char worse than free, which puts it back on the number
+  row the user disliked).

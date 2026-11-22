@@ -1,0 +1,273 @@
+<title>Transition Cost Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a keyboard half as the map, a detail panel beside it, a ranked list below. */
+:root {
+  --bg: #f7f8f6; --panel: #ffffff; --fg: #17191a; --muted: #5d625f; --line: #dfe2de;
+  --key: #eef0ec; --sel: #17191a;
+  --time: #1baf7a; --disc: #eb6834; --guess: #9aa09c; --guess-bg: #e6e8e4;
+  --h0: #f1f6fd; --h1: #cde2fb; --h2: #86b6ef; --h3: #3987e5; --h4: #1c5cab; --h5: #0d366b;
+  --sans: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141615; --panel: #1c1f1e; --fg: #eceeea; --muted: #a3a8a4; --line: #333836;
+  --key: #262a28; --sel: #eceeea;
+  --time: #199e70; --disc: #d95926; --guess: #7d837f; --guess-bg: #2e3331;
+  --h0: #1d2633; --h1: #184f95; --h2: #256abf; --h3: #3987e5; --h4: #86b6ef; --h5: #cde2fb;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141615; --panel: #1c1f1e; --fg: #eceeea; --muted: #a3a8a4; --line: #333836;
+  --key: #262a28; --sel: #eceeea;
+  --time: #199e70; --disc: #d95926; --guess: #7d837f; --guess-bg: #2e3331;
+  --h0: #1d2633; --h1: #184f95; --h2: #256abf; --h3: #3987e5; --h4: #86b6ef; --h5: #cde2fb;
+  color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px; }
+.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 20px; }
+h1 { font-size: 22px; font-weight: 600; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 70ch; line-height: 1.5; }
+.controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { font: inherit; background: var(--panel); color: var(--fg); border: 0; padding: 6px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.seg button:focus-visible, .key:focus-visible { outline: 2px solid var(--h3); outline-offset: 2px; }
+.lab { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-right: 6px; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+.kbwrap { overflow-x: auto; }
+.kb { display: grid; grid-template-columns: repeat(7, 58px); grid-auto-rows: 58px; gap: 6px; padding: 14px 4px 4px; width: max-content; }
+.key { position: relative; border: 1px solid var(--line); border-radius: 6px; background: var(--key); color: var(--fg);
+  font: inherit; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; }
+.key .ch { font-size: 19px; font-weight: 500; }
+.key .ch.pos { font-family: var(--mono); font-size: 12px; }
+.key .l2 { position: absolute; top: 3px; right: 5px; font-size: 11px; opacity: .75; }
+.key .v { position: absolute; bottom: 3px; left: 0; right: 0; font-family: var(--mono); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.key.dark { color: #ffffff; }
+.key.sel { outline: 3px solid var(--sel); outline-offset: 1px; }
+.key.hov { box-shadow: 0 0 0 2px var(--disc); }
+.scale { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.scale .ramp { height: 10px; width: 160px; border-radius: 3px; background: linear-gradient(90deg, var(--h0), var(--h1), var(--h2), var(--h3), var(--h4), var(--h5)); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+.sw.time, .seg-time { background: var(--time); }
+.sw.disc, .seg-disc { background: var(--disc); }
+.sw.guess, .seg-guess { background: repeating-linear-gradient(45deg, var(--guess) 0 2px, var(--guess-bg) 2px 5px); }
+.bar { display: flex; height: 14px; gap: 2px; }
+.bar > span { height: 100%; }
+.bar > span:last-child { border-radius: 0 4px 4px 0; }
+.panel h2 { font-size: 15px; margin: 0 0 4px; font-weight: 600; }
+.panel .hint { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.dir { margin-top: 14px; display: grid; gap: 6px; }
+.dir .head { display: flex; justify-content: space-between; font-weight: 500; }
+.dir .tot { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+table.terms { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.terms td { padding: 3px 0; border-top: 1px solid var(--line); }
+table.terms td.n { font-family: var(--mono); }
+table.terms td.r { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chip { font-size: 11px; padding: 1px 6px; border-radius: 9px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.rank { display: grid; grid-template-columns: 74px minmax(0, 1fr) 52px; gap: 4px 10px; align-items: center; font-size: 12.5px; }
+.rank .k { font-family: var(--mono); white-space: nowrap; }
+.rank .t { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.rank .row { display: contents; cursor: pointer; }
+.rank .bars { display: grid; gap: 2px; }
+.rank .row:hover .k { color: var(--disc); }
+.rank-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.rank-head h2 { font-size: 15px; margin: 0; font-weight: 600; }
+.note { color: var(--muted); font-size: 12.5px; line-height: 1.5; max-width: 80ch; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Transition Cost Map</h1>
+    <p class="sub" id="sub"></p>
+  </header>
+  <div class="controls">
+    <span><span class="lab">Colour</span><span class="seg" id="mode">
+      <button id="m-effort" data-v="effort">Key effort</button><button id="m-from" data-v="from">From selected</button><button id="m-to" data-v="to">To selected</button><button id="m-both" data-v="both">Both ways</button></span></span>
+    <span><span class="lab">Labels</span><span class="seg" id="labels"></span></span>
+  </div>
+  <div class="main">
+    <div class="card">
+      <div class="kbwrap"><div class="kb" id="kb"></div></div>
+      <div class="scale"><span id="lo"></span><span class="ramp"></span><span id="hi"></span><span id="scale-what"></span></div>
+    </div>
+    <div class="card panel" id="panel"></div>
+  </div>
+  <div class="card">
+    <div class="rank-head"><h2 id="rank-title"></h2>
+      <div class="legend"><span><span class="sw time"></span>time (measured)</span><span><span class="sw disc"></span>discomfort (measured)</span><span><span class="sw guess"></span>guess (not measured)</span></div></div>
+    <div class="rank" id="rank"></div>
+  </div>
+  <p class="note" id="note"></p>
+</div>
+
+<script>const D = /*DATA*/null;</script>
+<script>
+const POS = D.positions;
+const COLS = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6};
+const STAGGER = {0: 10, 1: 6, 2: 2, 3: -6, 4: -2, 5: 8, 6: 12};   // px, rough column stagger
+const FINGER = ["index", "index", "index", "middle", "ring", "pinky", "pinky"];
+let mode = "from", sel = "r2c2", hov = null;
+const layoutNames = Object.keys(D.layouts);
+let labels = layoutNames[0];
+
+function label(p) {
+  if (labels === "pos") return null;
+  const L = D.layouts[labels];
+  return L.base[p] ?? D.labels[p] ?? null;
+}
+function l2(p) { return labels === "pos" ? "" : (D.layouts[labels].l2[p] ?? ""); }
+function nice(p) { const l = label(p) ?? D.labels[p]; return l ? `${p} (${l === " " ? "␣" : l})` : p; }
+
+// split a list of [param, ms] terms into time / discomfort / guess ms
+function parts(terms) {
+  let t = 0, d = 0, g = 0;
+  for (const [n, v] of terms) {
+    const [kind, share] = D.kinds[n] ?? ["guess", 0];
+    if (kind === "guess") g += v;
+    else { t += v * share; d += v * (1 - share); }
+  }
+  return {t, d, g, sum: t + d + g};
+}
+function cost(p, q) { return D.cost[p][q].reduce((s, x) => s + x[1], 0); }
+
+function value(p) {
+  if (mode === "effort") return p in D.effort ? D.effort[p] : null;
+  if (p === sel) return null;
+  if (mode === "from") return cost(sel, p);
+  if (mode === "to") return cost(p, sel);
+  return cost(sel, p) + cost(p, sel);
+}
+const HEAT = ["--h0", "--h1", "--h2", "--h3", "--h4", "--h5"];
+function heat(x, lo, hi) {
+  const f = Math.max(0, Math.min(1, (x - lo) / (hi - lo || 1)));
+  const i = f * (HEAT.length - 1), a = Math.floor(i), b = Math.min(HEAT.length - 1, a + 1);
+  const cs = getComputedStyle(document.documentElement);
+  return {bg: `color-mix(in oklab, ${cs.getPropertyValue(HEAT[a])} ${(1 - (i - a)) * 100}%, ${cs.getPropertyValue(HEAT[b])})`, dark: f > 0.55};
+}
+
+function place(p) {
+  if (p === "t4") return {row: 6, col: 2};
+  const r = +p[1], c = +p[3];
+  return {row: r + 1, col: c + 1};
+}
+
+function renderKb() {
+  const kb = document.getElementById("kb");
+  kb.innerHTML = "";
+  const vals = POS.map(value).filter(v => v != null).sort((a, b) => a - b);
+  const lo = vals[0] ?? 0;
+  const hi = Math.min(vals[vals.length - 1] ?? 1, vals[Math.floor(vals.length * 0.9)] ?? 1);
+  document.getElementById("lo").textContent = Math.round(lo);
+  document.getElementById("hi").textContent = `${Math.round(hi)}+ ms`;
+  document.getElementById("scale-what").textContent = {
+    effort: "effort of entering the key (all guesses)",
+    from: `cost from ${nice(sel)} to the key`, to: `cost from the key to ${nice(sel)}`,
+    both: `cost to the key and back to ${nice(sel)}`}[mode];
+  for (const p of POS) {
+    const b = document.createElement("button");
+    b.className = "key"; b.id = "k-" + p;
+    const {row, col} = place(p);
+    b.style.gridRow = row; b.style.gridColumn = col;
+    if (p !== "t4") b.style.transform = `translateY(${STAGGER[+p[3]]}px)`;
+    else b.style.gridColumn = "1 / span 2";
+    const v = value(p);
+    if (v != null) { const h = heat(v, lo, hi); b.style.background = h.bg; if (h.dark) b.classList.add("dark"); }
+    if (p === sel && mode !== "effort") b.classList.add("sel");
+    if (p === hov) b.classList.add("hov");
+    const l = label(p);
+    b.innerHTML = `<span class="ch ${l == null ? "pos" : ""}">${l == null ? p : (l === " " ? "␣" : esc(l))}</span>`
+      + (l2(p) ? `<span class="l2">${esc(l2(p))}</span>` : "")
+      + `<span class="v">${v == null ? (p === sel && mode !== "effort" ? "selected" : "") : Math.round(v)}</span>`;
+    b.setAttribute("aria-label", `${p}${v == null ? "" : ", " + Math.round(v) + " ms"}`);
+    b.onclick = () => { if (mode === "effort") mode = "from"; if (p === sel) return; sel = p; hov = null; render(); };
+    b.onmouseenter = () => { if (p !== sel) { hov = p; renderPanel(); markHov(); } };
+    b.onfocus = b.onmouseenter;
+    kb.appendChild(b);
+  }
+}
+function markHov() { document.querySelectorAll(".key").forEach(k => k.classList.toggle("hov", k.id === "k-" + hov)); }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]); }
+
+function bar(pp, scale) {
+  const w = x => `${Math.max(0, x) / scale * 100}%`;
+  return `<div class="bar">${pp.t > 0.5 ? `<span class="seg-time" style="width:${w(pp.t)}"></span>` : ""}`
+    + `${pp.d > 0.5 ? `<span class="seg-disc" style="width:${w(pp.d)}"></span>` : ""}`
+    + `${pp.g > 0.5 ? `<span class="seg-guess" style="width:${w(pp.g)}"></span>` : ""}</div>`;
+}
+function kindChip(n) {
+  const [k, s] = D.kinds[n] ?? ["guess", 0];
+  if (k === "guess") return `<span class="chip">guess</span>`;
+  if (k === "time") return `<span class="chip">time</span>`;
+  return `<span class="chip">fit: ${Math.round(s * 100)}% time</span>`;
+}
+function dirBlock(p, q, scale) {
+  const T = D.cost[p][q], pp = parts(T);
+  const rows = T.slice().sort((a, b) => b[1] - a[1]).map(([n, v]) =>
+    `<tr><td class="n">${n}</td><td>${kindChip(n)}</td><td class="r">${v.toFixed(0)} ms</td></tr>`).join("");
+  return `<div class="dir"><div class="head"><span>${esc(nice(p))} → ${esc(nice(q))}</span><span class="tot">${Math.round(pp.sum)} ms</span></div>
+    ${bar(pp, scale)}<table class="terms">${rows}</table></div>`;
+}
+function renderPanel() {
+  const el = document.getElementById("panel");
+  if (mode === "effort" && !hov) {
+    el.innerHTML = `<h2>Key effort</h2><p class="hint">The extra cost of entering a key, on top of the finger-to-finger cost. Every effort value is still a guess; the far right column and the number row are the ones the measurements will replace next (focus-10, pinky reach). Click a key to see its transitions.</p>`;
+    return;
+  }
+  if (!hov) {
+    el.innerHTML = `<h2>${esc(nice(sel))}</h2><p class="hint">Hover or focus another key to see both transitions between it and the selected key, term by term. Click a key to select it instead.</p>`
+      + `<p class="hint">Costs are in ms of a practised transition; measured discomfort is folded in at ${D.k} ms per penalty step (ratings 1-5 → 0 1 3 6 12).</p>`;
+    return;
+  }
+  const scale = Math.max(cost(sel, hov), cost(hov, sel));
+  el.innerHTML = `<h2>${esc(nice(sel))} and ${esc(nice(hov))}</h2>` + dirBlock(sel, hov, scale) + dirBlock(hov, sel, scale);
+}
+function renderRank() {
+  const others = POS.filter(p => p !== sel);
+  const rows = others.map(p => ({p, out: parts(D.cost[sel][p]), back: parts(D.cost[p][sel])}))
+    .sort((a, b) => (b.out.sum + b.back.sum) - (a.out.sum + a.back.sum));
+  const scale = Math.max(...rows.map(r => Math.max(r.out.sum, r.back.sum)));
+  document.getElementById("rank-title").textContent = `All transitions with ${nice(sel)}, costliest round trip first (upper bar: from, lower: back)`;
+  document.getElementById("rank").innerHTML = rows.map(r =>
+    `<div class="row" data-p="${r.p}"><span class="k">${esc(nice(r.p))}</span><span class="bars">${bar(r.out, scale)}${bar(r.back, scale)}</span>`
+    + `<span class="t">${Math.round(r.out.sum)}<br>${Math.round(r.back.sum)}</span></div>`).join("");
+  document.querySelectorAll("#rank .row").forEach(el => {
+    el.onmouseenter = () => { hov = el.dataset.p; renderPanel(); markHov(); };
+    el.onclick = () => { sel = el.dataset.p; hov = null; render(); };
+  });
+}
+function renderControls() {
+  document.querySelectorAll("#mode button").forEach(b => {
+    b.setAttribute("aria-pressed", b.dataset.v === mode);
+    b.onclick = () => { mode = b.dataset.v; hov = null; render(); };
+  });
+  const L = document.getElementById("labels");
+  if (!L.children.length) {
+    for (const [v, t] of [["pos", "Positions"], ...layoutNames.map(n => [n, n.replace(/ \(.*/, "")])]) {
+      const b = document.createElement("button"); b.id = "lab-" + v.replace(/\W/g, ""); b.dataset.v = v; b.textContent = t;
+      b.title = v; L.appendChild(b);
+    }
+  }
+  L.querySelectorAll("button").forEach(b => {
+    b.setAttribute("aria-pressed", b.dataset.v === labels);
+    b.onclick = () => { labels = b.dataset.v; render(); };
+  });
+}
+function render() { renderControls(); renderKb(); renderPanel(); renderRank(); }
+
+const V = D.values;
+document.getElementById("sub").textContent =
+  `Cost model of ${layoutNames[0].match(/\((.*)\)/)[1]}: fitted parameters from the focus measurements (${D.info}), the rest guesses. `
+  + `Click a key to select it; the map then shows the cost of every transition from it, to it, or both ways.`;
+document.getElementById("note").textContent =
+  `Not in the map: the layer switch (+${Math.round(V.layer)} ms when the next letter is on layer 2, +${Math.round(V.layer_cont)} when the layer key is already held; measured as time), `
+  + `Shift (+${Math.round(V.shift)}, derived from the layer switch), and the Polish one-shot key (not modelled yet). `
+  + `A fitted parameter is split by fitting it twice, with and without the ratings; the full-scissor factor scales its scissor term and is counted with it. `
+  + `Labels show the base-layer letter and, small in the corner, the layer-2 letter.`;
+document.addEventListener("keydown", e => { if (e.key === "Escape") { hov = null; renderPanel(); markHov(); } });
+render();
+</script>
