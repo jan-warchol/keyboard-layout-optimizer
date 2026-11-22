@@ -58,16 +58,18 @@ reasons in [docs/design-principles.md](docs/design-principles.md) (decision log)
 ## Next steps
 
 1. **Measurements** (the user; pause keystats). Protocol 3 since
-   2026-11-22: continuous typing, resync after slips, stops when the
-   speed settles (docs/measurement-plan.md, Protocol).
-   `python3 measure/measure.py
-   run --plan focus-N`. Done: focus-1 to 6 round 1. To do, in this order:
-   - `focus-7` one-shot (20; redesigned 2026-11-22: no Space, plus a
-     pinky one-shot on r2c6): one-shot cost decides the layer key, its
-     place (thumb or pinky) and how much goes on one-shot layers;
-   - `focus-8` index-ring scissors (14), `focus-9` middle-pinky (14),
-     `focus-10` pinky reach (16), `focus-11` index c1 + pinky (12),
-     `focus-12` thumb vs pinky one-shot before pairs (12);
+   2026-11-22: continuous typing, the highlighted key is always next,
+   stops when the speed settles; one round per day
+   (docs/measurement-plan.md, Protocol). `python3 measure/measure.py
+   run --plan focus-N`. Done: focus-1 to 7 round 1. To do, in this order
+   (by sensitivity, `analysis/sensitivity-2026-11-22-focus-guesses.tsv`):
+   - `focus-8` index-ring scissors (14), `focus-9` middle-pinky (14):
+     `sc_far` decides the layout (×4 of the guess: regret 11 ms/char);
+   - `focus-12` thumb vs pinky one-shot before pairs (12): where the
+     one-shot key goes (not in the model yet, so not swept);
+   - `focus-11` index c1 + pinky (12), `focus-10` pinky reach (16): their
+     guesses cost < 0.6 ms/char if wrong; optional before the second
+     test layout;
    - rounds 2-3 of focus-1 to 5 on other days.
    Then `python3 analysis/measurements.py focus` (add report sections for
    focus-8 to 11) and extend `optimizer/fit.py`: `sc_far`, `spread_ip`,

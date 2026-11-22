@@ -1,0 +1,25 @@
+# baseline 241.099 ms/char; noise regret max 0.242, moved max 0.316
+param	base	value	regret_ms	moved	score
+sc_far	100	600	23.457	0.844	261.572
+sc_far	100	400	11.214	0.672	256.243
+space_top	20	120	1.114	0.285	251.697
+sc_far	100	200	0.979	0.571	248.906
+spread_bottom_factor	2.2	4.4	0.596	0.280	243.671
+spread_ip	125	62.5	0.552	0.442	238.834
+sc_full_factor	2.74641	5	0.516	0.120	246.669
+space_top	20	80	0.504	0.454	247.622
+sc_full_factor	2.74641	4	0.419	0.142	244.065
+e_col6_top	35	70	0.416	0.082	241.944
+sc_far	100	50	0.283	0.432	236.423
+e_pinky_top	35	17.5	0.174	0.179	240.359
+sc_full_factor	2.74641	2	0.146	0.448	238.938
+e_col6_home	25	12.5	0.122	0.078	240.608
+spread_bottom_factor	2.2	1.1	0.092	0.011	239.811
+spread_ip	125	250	0.085	0.014	244.442
+e_col6_home	25	50	0.043	0.023	241.794
+e_pinky_top	35	70	0.037	0.014	242.194
+e_pinky_bottom	25	12.5	0.007	0.010	240.547
+space_top	20	10	0.001	0.000	239.927
+e_pinky_bottom	25	50	0.000	0.000	242.189
+e_col6_top	35	17.5	0.000	0.000	240.469
+space_top	20	40	0.000	0.000	243.442

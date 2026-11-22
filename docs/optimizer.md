@@ -260,3 +260,18 @@ Findings and problems of the first fitted layouts:
   Entry and layer keys are placed by the user.
 - Still open from the review: `.` and `-` on layer 2; `[` `]` split between
   layers; pinky 25%, middle 9% (to be judged by typing).
+
+### Sweep of the new guesses (2026-11-22)
+
+Fitted parameters (`fitted.json`) as the baseline, 241.1 ms/char; noise
+regret max 0.24; `analysis/sensitivity-2026-11-22-focus-guesses.tsv`.
+- `sc_far` (skipped-finger scissors, guess 100) decides the layout:
+  regret 0.3 / 1.0 / 11.2 / 23.5 ms/char at ×0.5 / ×2 / ×4 / ×6, most
+  letters move. Measure first (`focus-8`, `focus-9`).
+- Everything else ≤ 1.1: `spread_ip` 0.55 at ×0.5, `spread_bottom_factor`
+  0.60 at ×2, `sc_full_factor` ≤ 0.52, `e_col6_top` 0.42 at ×2,
+  `e_pinky_top` ≤ 0.17, `e_col6_home` ≤ 0.12, `e_pinky_bottom` ~0,
+  `space_top` 1.1 only at ×6. Guesses are good enough for a test layout.
+- The one-shot layer key is not modelled, so `focus-7`/`focus-12` can't be
+  swept; they decide the layer key's kind and place.
+
