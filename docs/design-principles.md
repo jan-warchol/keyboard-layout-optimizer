@@ -373,3 +373,10 @@ has only 14 lines). Raw history overstates what is actually typed, so filter:
   middle finger. Second test layout exported with the one-shot key on
   r2c6 (2.9 ms/char worse than free, which puts it back on the number
   row the user disliked).
+- **2026-11-22, second test layout typed** (user): okay, kept for
+  everyday use. Thumbs swapped so Space is innermost. Brackets belong
+  next to each other: `( )` moved to layer-2 bottom middle/ring; `:` gets
+  a key of its own (layer-2 r3c1) instead of Shift + `;` on the number
+  row; `^` to layer-2 r0c5. The model rates the change +0.46 ms/char
+  (noise); it has no notion of pairs belonging together *(possible model
+  term: adjacency of paired symbols)*.
