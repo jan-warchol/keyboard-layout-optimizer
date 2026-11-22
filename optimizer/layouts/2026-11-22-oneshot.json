@@ -1,6 +1,6 @@
 {
- "description": "Round-1 fitted costs incl. far scissors and index c1 + ring (k=50), Polish one-shot key pinned to r2c6; 2026-11-22",
- "score": 245.52890738284282,
+ "description": "Round-1 fitted costs incl. far scissors and index c1 + ring (k=50), Polish one-shot key pinned to r2c6; 2026-11-22; edited by the user after the first typing run: ( ) on layer-2 bottom middle/ring, : its own key on layer-2 r3c1, ^ to layer-2 r0c5 (model: +0.46 ms/char)",
+ "score": 245.99,
  "polish": "oneshot",
  "polish_map": {
   "ą": "a",
@@ -106,12 +106,6 @@
    "char": ";"
   },
   {
-   "pos": "r0c3",
-   "layer": 1,
-   "shift": 1,
-   "char": ":"
-  },
-  {
    "pos": "r0c4",
    "layer": 0,
    "shift": 0,
@@ -145,7 +139,7 @@
    "pos": "r0c5",
    "layer": 1,
    "shift": 0,
-   "char": ")"
+   "char": "^"
   },
   {
    "pos": "r1c1",
@@ -451,7 +445,7 @@
    "pos": "r3c1",
    "layer": 1,
    "shift": 0,
-   "char": "("
+   "char": ":"
   },
   {
    "pos": "r3c2",
@@ -493,7 +487,7 @@
    "pos": "r3c3",
    "layer": 1,
    "shift": 0,
-   "char": "^"
+   "char": "("
   },
   {
    "pos": "r3c4",
@@ -506,6 +500,12 @@
    "layer": 0,
    "shift": 1,
    "char": "H"
+  },
+  {
+   "pos": "r3c4",
+   "layer": 1,
+   "shift": 0,
+   "char": ")"
   },
   {
    "pos": "r3c5",
