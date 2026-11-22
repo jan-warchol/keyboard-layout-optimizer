@@ -465,6 +465,11 @@ Recompute with `python3 analysis/measurements.py report`.
     35%). A wrong key invalidates the transition into it.
 - **Discomfort rating** after every trial, on the top row `. u i o b`:
   1 effortless · 2 fine · 3 some effort · 4 uncomfortable · 5 strain.
+  Since 2026-11-22 halves too: two neighbouring numbers (3 then 4 = 3.5),
+  saved as 3.5 (user: some patterns fall in between).
+  After a trial the screen goes blank for 1 s, keys ignored (typing on
+  past the end once rated a trial by accident: `o` = 4, Space = confirm;
+  that trial is marked `discarded`).
 - **Control trials** (`n r` and the inward roll `h l r n`) at the start and
   end of every session track drift, fatigue and session speed.
 - **Repeatability:** phases 1-2a measured every pattern in 3 sessions (at

@@ -839,25 +839,46 @@ def run_trial(kb, pattern, header):
 
 RATING_NAMES = {1: "effortless", 2: "fine", 3: "some effort", 4: "uncomfortable", 5: "strain"}
 CONFIRM_KEYS = {"t4", "r1c0"}  # Space, Enter
+# After a trial the screen goes blank this long and keys are ignored: typing
+# on past the end rated a trial by accident (o = 4, Space = confirm; user,
+# 2026-11-22).
+RATING_DELAY_S = 1.0
 
 
 def ask_rating(kb, header):
-    """Rating is shown first and only stored after Space/Enter confirms it."""
+    """Rating is shown first and only stored after Space/Enter confirms it.
+    Before it, a blank screen for RATING_DELAY_S, keys ignored."""
+    screen()
+    end = time.time() + RATING_DELAY_S
+    while time.time() < end:
+        for pos, _down, _t in kb.events(max(0.0, end - time.time())):
+            if pos == "quit":
+                return "quit"
     choice = None
     while True:
         if choice is None:
             status = "   (no rating selected)"
         else:
-            status = (f"   selected: \x1b[30;43m {choice} – {RATING_NAMES[choice]} \x1b[0m"
+            name = (RATING_NAMES[choice] if choice == int(choice) else
+                    f"between {RATING_NAMES[int(choice)]} and {RATING_NAMES[int(choice) + 1]}")
+            shown = f"{int(choice)}½" if choice != int(choice) else f"{choice}"
+            status = (f"   selected: \x1b[30;43m {shown} – {name} \x1b[0m"
                       "   → Spc / Ent to confirm, another number to change")
         screen(header, "", "   How did that feel?", "",
                f"   top row (. u i o b):  {RATING_TEXT}",
+               "   in between: two neighbouring numbers, e.g. 3 then 4 = 3½",
                "   Bsp = redo,   Del = skip (mark as weird)", "", status)
         pos, _ = kb.next_press()
         if pos == "quit":
             return "quit"
         if pos in RATING_KEYS:
-            choice = RATING_KEYS[pos]
+            r = RATING_KEYS[pos]
+            # a neighbouring number after a whole one: the half in between
+            # (user, 2026-11-22); after a half, or any other number: that number
+            if choice is not None and choice == int(choice) and abs(r - choice) == 1:
+                choice = (r + choice) / 2
+            else:
+                choice = r
         elif pos in CONFIRM_KEYS and choice is not None:
             return choice
         elif pos == REDO_KEY:
@@ -957,7 +978,7 @@ def cmd_run(args):
                    "protocol": PROTOCOL, "plan": None if control else plan_name,
                    "pattern": pattern, "word": WORD_TEXT.get(tuple(pattern)), "control": control,
                    "status": "skipped" if rating == "skip" else "ok",
-                   "rating": rating if isinstance(rating, int) else None,
+                   "rating": rating if isinstance(rating, (int, float)) else None,
                    "cycles": info["cycles"], "warmup_cycles": info["warmup_cycles"],
                    "stable": info["stable"], "errors": info["errors"],
                    "streak": [STREAK, STREAK_WARMUP],

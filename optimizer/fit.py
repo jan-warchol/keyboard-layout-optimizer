@@ -32,9 +32,10 @@ PENALTY = {1: 0, 2: 1, 3: 3, 4: 6, 5: 12}
 
 
 def penalty(r):
-    """Rating -> penalty; medians like 2.5 interpolate."""
+    """Rating -> penalty; half ratings (3.5, since 2026-11-22) and medians
+    like 3.25 interpolate linearly."""
     lo = int(r)
-    return PENALTY[lo] if r == lo else (PENALTY[lo] + PENALTY[lo + 1]) / 2
+    return PENALTY[lo] if r == lo else PENALTY[lo] + (r - lo) * (PENALTY[lo + 1] - PENALTY[lo])
 
 
 def cycle_cost(pattern, P):
