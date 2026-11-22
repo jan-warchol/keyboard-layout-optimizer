@@ -49,7 +49,7 @@ focused (terminal focus reporting).
       oneshot-pairs: Sft or r2c6 tapped before home-row pairs (12)
       space-row: same-row finger triples with and without Space, top /
                home / bottom row: the hand stretch of Space + top row (12)
-      focus-1..focus-12: the above split into sessions of <= 20
+      focus-1..focus-13: the above split into sessions of <= 20
                patterns, each with its references (see FOCUS_SPLIT)
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
@@ -331,18 +331,20 @@ def scissors_plan(cols=(2, 3, 4), gap=1):
     return [canonical(p) for p in pats]
 
 
-def scissors_far_plan(cols=(2, 3)):
+def scissors_far_plan(cols=(2, 3), index_col=2):
     """Scissors with a finger skipped: index-ring (c2, c4) and middle-pinky
     (c3, c5). The user, typing the first test layout: 'n o' (ring top, index
     bottom) strains, about 4 of 5; middle-pinky too. All rows except
     top-top and bottom-bottom (reduced, user): top-home, home-bottom and
     top-bottom in both directions, both orders, + home-home reference:
     14 patterns per pair. Home-bottom is kept: the user finds it generally
-    worse than top-home, sometimes much worse."""
+    worse than top-home, sometimes much worse. index_col=1: the index in
+    its stretch column instead (with the ring, c4): 'n o' in the first test
+    layout was ring top + index c1 bottom (user, 2026-11-22)."""
     pats = []
     for c in cols:
         for ra, rb in ((1, 2), (2, 1), (2, 3), (3, 2), (1, 3), (3, 1), (2, 2)):
-            a, b = f"r{ra}c{c}", f"r{rb}c{c + 2}"
+            a, b = f"r{ra}c{index_col if c == 2 else c}", f"r{rb}c{c + 2}"
             pats += [(a, b, "t4"), (b, a, "t4")]
     return [canonical(p) for p in pats]
 
@@ -520,6 +522,7 @@ FOCUS_SPLIT = {
     "focus-10": lambda: pinky_reach_plan(),                                  # 16
     "focus-11": lambda: spread_ip_plan(),                                    # 12
     "focus-12": lambda: oneshot_pairs_plan(),                                # 12
+    "focus-13": lambda: scissors_far_plan(cols=(2,), index_col=1),           # 14
 }
 
 

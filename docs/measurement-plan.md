@@ -34,6 +34,7 @@ references it needs, `measure.py run --plan focus-N`:
 | `focus-10` | `pinky-reach` (16): index or middle at home with pinky home / top / c6 home / c6 top, both orders, + Space |
 | `focus-11` | `spread-ip` (12): index c1 with pinky c5, home / bottom rows, both orders, + Space, vs index in c2 |
 | `focus-12` | `oneshot-pairs` (12): Sft or the pinky (r2c6) tapped before home-row pairs, `Sft a b` and `; a b`: thumb vs pinky one-shot |
+| `focus-13` | `scissors-far` with the index in c1 (14): index stretch column with ring c4, the same rows as `focus-8`; `n o` in the first test layout was ring top + index c1 bottom, which `focus-8` (index in c2) didn't cover, and the model prices c1 + ring like c2 + ring (no lateral term) |
 
 `focus-8` to `focus-11` (added after the first typing test, 2026-11-21):
 the user found `n o` (ring top, index bottom) straining, about 4 of 5,
