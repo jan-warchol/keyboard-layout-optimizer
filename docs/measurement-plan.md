@@ -28,11 +28,12 @@ references it needs, `measure.py run --plan focus-N`:
 | `focus-4` | `layer` for `n l` and `r l` (16) |
 | `focus-5` | `layer-fingers` (16): `n r l` both orders, no Space, layer held for none / one / two / all letters |
 | `focus-6` | `space-row` (12): index-middle + Space vs index-middle-ring, top / home / bottom row |
-| `focus-7` | `oneshot` (18): the `layer` pairs with Sft *tapped* before the first, the second or each letter |
+| `focus-7` | `oneshot` (20): the `layer-fingers` triples, no Space, with Sft *tapped* before each layered letter (14), and with the one-shot key on the pinky (r2c6) before one letter (6) |
 | `focus-8` | `scissors-far` index-ring (14): c2 with c4, top-home, home-bottom and top-bottom in both directions, both orders, + Space, + home-home reference |
 | `focus-9` | `scissors-far` middle-pinky (14): c3 with c5, the same |
 | `focus-10` | `pinky-reach` (16): index or middle at home with pinky home / top / c6 home / c6 top, both orders, + Space |
 | `focus-11` | `spread-ip` (12): index c1 with pinky c5, home / bottom rows, both orders, + Space, vs index in c2 |
+| `focus-12` | `oneshot-pairs` (12): Sft or the pinky (r2c6) tapped before home-row pairs, `Sft a b` and `; a b`: thumb vs pinky one-shot |
 
 `focus-8` to `focus-11` (added after the first typing test, 2026-11-21):
 the user found `n o` (ring top, index bottom) straining, about 4 of 5,
@@ -44,9 +45,22 @@ up, about as far as c6 top. The model now has `sc_far` and a higher
 held, it works as a normal layer key) removes the release timing that
 makes held single layered letters slow and error-prone. Tapping the
 layer key is a plain thumb press, so it is emulated by tapping Sft as an
-ordinary pattern key (`n Sft r Spc`); no keymap change needed. 15 cycles,
-6 warm-up (new movement). The user has used one-shot keys only briefly,
+ordinary pattern key (`Sft n r l`); no keymap change needed. 12 cycles,
+3 warm-up: the user practises the pattern with Backspace until it goes
+well before starting (2026-11-22; was 15 and 6, new movement). The user has used one-shot keys only briefly,
 for modifier chords.
+Redesigned 2026-11-22 after one trial (user): with Space (the `layer`
+pairs, now plan `oneshot-space`) the thumb made up to 3 of 5 presses on
+two keys (`Sft n Sft r Spc`) and became the bottleneck. Now like
+`focus-5`: `n r l` in both orders, no Space, every non-empty set of
+layered letters, so tapped vs held compare directly (plain triples are
+in `focus-5`). The one-shot key may not end up on a thumb: on the pinky's
+outer key (r2c6) it comes before each letter of the triples in turn; the
+move to the next finger is inward *(guess: fast)*. The user typed
+`; n l r` as two units, `; n` and `l r` (gaps 107, 303, 59, 251 ms);
+`; l r n` as one inward roll (99, 93, 74, 216). `focus-12` has the
+pinky before home-row pairs and the thumb version of the same, for
+comparing the two directly.
 
 `focus-5` and `focus-6` were added after the first rounds (user, 2026-11-21):
 - With Space, the layer key and Space alternate on one thumb; the first
@@ -55,6 +69,9 @@ for modifier chords.
   stays measured, but `layer-fingers` isolates the switch itself
   (all-three-held = holding without switching). Patterns with a held
   layer key now get 20 cycles, 8 of them warm-up (`MOD_CYCLES`).
+  From 2026-11-22 15 cycles, 3 warm-up: the user restarts a run until
+  fluent, so the practice happens before it. Still 12 measured cycles,
+  comparable with round 1.
 - Space next to a top-row key stretches the whole hand (thumb down,
   finger up), so with-Space patterns overstate top-row discomfort.
   `space-row` separates it: the top-vs-home difference with Space minus
@@ -387,34 +404,86 @@ Recompute with `python3 analysis/measurements.py report`.
     faster due to practice (layout in use for ~2 months).
 - **Trial:** highlighted keys typed cyclically, as if part of a word:
   separate presses, not an oscillation and not a sprint.
+- **Length (protocol 3, from 2026-11-22):** no fixed number of cycles.
+  A clean cycle has all keys right, no wrong key in between, and no long
+  gaps. A clean cycle counts only in a streak of 4+ clean cycles in a
+  row, and the first 2 of each streak are dropped (re-warm-up after a
+  slip; user, 2026-11-22: isolated clean cycles between slips aren't
+  flowing typing). By position in a streak (17 streaks of 6+): 1st +11%
+  vs the rest, 2nd +3% (24% of them >10% slower), 3rd on par; slippery
+  patterns start more streaks, so keeping the 2nd would favour easy
+  ones slightly. Trials store the rule as `streak` [4, 2]; the
+  first protocol-3 trials (until ~11:40, no field) used 3 and 1. The first 3 counted cycles are warm-up; the trial stops when the
+  last 10 counted cycles have settled: the median of their second half is
+  at most 10% faster than the first half's (within-trial noise is
+  ~30 ms, so a 4-cycle median moves by a few %; 10% flags real learning
+  only). Cap: 40 cycles typed or 90 s of typing. Trials record `stable`
+  (false = stopped by the cap) and `warmup_cycles`..`cycles` = the
+  measured window. Before (protocol 2), a fixed number of cycles:
 
   | Keys | 1 | 2 | 3 | 4 | 5-6 |
   |---|---|---|---|---|---|
   | cycles | 30 | 20 | 13 | 10 | after the pilot |
   | warm-up cycles | 8 | 5 | 3 | 3 | after the pilot |
 
+  Why the change (user, 2026-11-22): with a fixed run, one skipped or
+  extra key shifted every later key into the wrong slot, so the rest of
+  the run counted as errors and the user restarted runs until fluent;
+  the fixed warm-up then came after the practice, and a late slip
+  spoilt a mostly good run.
+
 - **Main measure is the cycle time** (one pass through the pattern).
 - **Timing** from kernel input events (`/dev/input`), press-to-press.
   Releases are logged too (hold time, rollover). Rollover is normal in
   comfortable sequences (the old keylogs show it too).
-- **Start over:** Backspace during a trial discards it and starts again.
-- **Errors:** a wrong key counts as an error and takes its place in the
-  sequence (since 2026-11-21, trials marked `advance_on_error`): before,
-  the correct key had to follow, and after a slip the user lost track of
-  the position and made several errors in a row. Cycles containing an
-  error are left out of the cycle time, and a wrong key invalidates the
-  transition into it. Error counts are kept as an additional cost signal.
+- **Errors (protocol 3):** the highlighted key is always the next one. A
+  wrong key is saved as an error (index -1, no slot) and the highlight
+  stays until the right key comes; a slip costs only the streak it
+  breaks. `errors` = slips (a run of wrong keys counts once); divide by
+  the presses for a rate (an additional cost signal). Backspace (when not
+  in the pattern) starts the pattern again: the highlight moves to the
+  start of the next cycle, the unfinished cycle is never counted (user:
+  simplest when lost in the middle).
+  The screen lays the pattern out cycle after cycle (rows of whole
+  cycles, 2 rows back and 2 ahead): typed slots green, the next key
+  highlighted (red after a wrong key). A view of only the last keys
+  typed, or of one cycle with a moving highlight, scrolled or jumped too
+  fast to read (user).
+  - A first protocol-3 version (2026-11-22, a few trials) found the
+    position again from the next 2 keys typed after a slip, wherever in
+    the pattern they fitted. Too clever: pressing the highlighted key
+    alone didn't resume, and the user got lost (`Sft r Sft n l`, 11:21,
+    23 errors, never settled; left out by the analysis, as is every
+    protocol-3 trial without counted cycles).
+  - Before: until 2026-11-21 the correct key had to follow a wrong one
+    (after a slip the user lost track and made several errors in a row);
+    then (`advance_on_error`) a wrong key took its slot.
+  - Cycles with a wrong key inside are left out of the cycle time, for
+    all protocols (since 2026-11-22; before, cycles with a corrected
+    error counted in the blocking trials, which changes 83 of 398 old
+    cycle times, mostly by 0.5-3%, the error-heavy word pilots by up to
+    35%). A wrong key invalidates the transition into it.
 - **Discomfort rating** after every trial, on the top row `. u i o b`:
   1 effortless · 2 fine · 3 some effort · 4 uncomfortable · 5 strain.
 - **Control trials** (`n r` and the inward roll `h l r n`) at the start and
   end of every session track drift, fatigue and session speed.
 - **Repeatability:** phases 1-2a measured every pattern in 3 sessions (at
-  most once per session); word trials use anchor words instead.
+  most once per session); word trials use anchor words instead. Since
+  2026-11-22 each round is on a separate day: a session skips patterns
+  already measured that day, and rounds = days with an ok trial (`run
+  --repeats`, default 3).
 - **Stretches and breaks:** 3-minute stretches (pauses not counted), then a
   30 s break with a countdown; continue or finish with the end controls;
   at most 5 stretches.
-- **Measuring only while the terminal is focused.** Switching away pauses
-  the trial; key presses elsewhere are ignored.
+- **Measuring only while the terminal is focused.** Switching away (or a
+  screen lock) pauses the trial; key presses elsewhere are ignored. Since
+  protocol 3 the trial goes on after the pause (the gap breaks no
+  measured cycle: cycles with long gaps are left out).
+- **Avoid patterns whose rotation is a familiar roll** unless the roll is
+  what is measured (user, 2026-11-22): `; n l r` (focus-7) read as a
+  shifted inward roll, and it took several attempts to type it as the
+  intended two units `; n` + `l r`. The hand drifts into the roll, and the
+  cycle then measures the roll instead.
 - **Keylogs:** pause keystats during sessions; as a safeguard, keylog
   events inside session time windows are dropped from typing statistics.
 - Protocol 1 (the first 44 trials, 2-key cycles over all positions) is

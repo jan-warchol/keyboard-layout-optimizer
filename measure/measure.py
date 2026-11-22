@@ -5,10 +5,10 @@ Each trial highlights 1-4 keys and shows the sequence to type cyclically
 (e.g. "u n u n ..." or "u n r u n r ..."), typed as if it were part of a
 word - separate key presses, not a back-and-forth oscillation or a sprint.
 Afterwards rate the discomfort on the top row keys . u i o b = 1-5
-(Backspace = redo, Del = skip). Del during a trial pauses, Backspace
-starts it over (nothing saved). A wrong key counts as an error and the
-sequence moves on, so the rhythm isn't lost (since 2026-11-21; before, the
-correct key had to be pressed).
+(Backspace = redo, Del = skip). Del during a trial pauses. The trial
+runs until the speed has settled (protocol 3); the highlighted key is
+always the next one, a wrong key counts as an error and the highlight
+stays. Only streaks of clean cycles are measured.
 
 Works on the measurement layer (see make_measurement_layer.py) or on layer 4
 (the typing layer, plain keys since 2026-11-19): both send the same keys
@@ -42,11 +42,14 @@ focused (terminal focus reporting).
                the first, the second or both letters (24 patterns)
       layer-fingers: home-row finger triples, no Space, layer key held
                for none, one, two or all three letters (16 patterns)
-      oneshot: one-shot layer key emulated by tapping Sft (not holding it)
-               before the layered letter: the same pairs as layer (18)
+      oneshot: one-shot layer key emulated by tapping a key (not holding
+               it) before the layered letters: layer-fingers triples with
+               Sft (14), and the pinky on r2c6 before one letter (6)
+      oneshot-space: the layer pairs + Space with Sft tapped (18; old focus-7)
+      oneshot-pairs: Sft or r2c6 tapped before home-row pairs (12)
       space-row: same-row finger triples with and without Space, top /
                home / bottom row: the hand stretch of Space + top row (12)
-      focus-1..focus-11: the above split into sessions of <= 20
+      focus-1..focus-12: the above split into sessions of <= 20
                patterns, each with its references (see FOCUS_SPLIT)
       bigrams: all 2-key position pairs (exploratory, protocol 1)
       FILE: one sequence per line, key labels or position ids,
@@ -58,6 +61,7 @@ focused (terminal focus reporting).
       data/measurements/typing.jsonl, for comparing layouts over time
 """
 import argparse
+import bisect
 import collections
 import datetime
 import glob
@@ -90,16 +94,33 @@ RATING_TEXT = "1 effortless · 2 fine · 3 some effort · 4 uncomfortable · 5 s
 
 # Protocol 1: 2-key cycles, 2 warm-up cycles, "comfortable pace", control
 # every 13th trial. Protocol 2: longer warm-up, "as part of a word",
-# controls at session start and end, phase-1 baseline plan.
-PROTOCOL = 2
-CYCLES = {1: 30, 2: 20, 3: 13, 4: 10, 5: 8, 6: 7}      # cycles per trial, by pattern length
-WARMUP_CYCLES = {1: 8, 2: 5, 3: 3, 4: 3, 5: 3, 6: 3}   # >= 8 presses; 5-6: to be set by the pilot
-# Plans that override the above: plan -> (cycles, warm-up cycles)
-PLAN_CYCLES = {"pilot-words": (20, 0), "pilot-chain": (15, 0), "pilot-real": (15, 0),
-               "oneshot": (15, 6), "focus-7": (15, 6)}   # new movement: more warm-up
-# Patterns with a held layer key: the first runs needed ~8 restarts (user,
-# 2026-11-21), so more warm-up before measuring.
-MOD_CYCLES = (20, 8)
+# controls at session start and end, phase-1 baseline plan; a fixed number
+# of cycles, a wrong key took its slot (an off-by-one spoilt the rest of
+# the run, so the user restarted runs until fluent). Protocol 3
+# (2026-11-22): typing is continuous, only streaks of clean cycles count
+# (a slip costs its streak, no restarts), and the trial stops when the
+# speed has settled. A wrong key doesn't move the position (a first
+# version resynced from the next keys: too clever, the user lost track of
+# where they were).
+PROTOCOL = 3
+PROTOCOL_DONE = 2               # trials from this protocol on count as done
+# protocols 1-2: warm-up cycles by pattern length (default for old trials)
+WARMUP_CYCLES = {1: 8, 2: 5, 3: 3, 4: 3, 5: 3, 6: 3}
+# protocol 3: stopping rule
+WARMUP_CLEAN = 3                # clean cycles dropped at the start
+STABLE_N = 10                   # counted cycles measured (user, 2026-11-22; was 8)
+# The window's second half may be at most this much faster than its first
+# (still learning). Within-trial noise is ~30 ms on 300-600 ms cycles, so a
+# 4-cycle median varies by a few %; 10% catches real learning only.
+MAX_SPEEDUP = 0.10
+MAX_CYCLES = 40                 # cap: cycles typed, clean or not
+MAX_TYPING_S = 90               # cap: typing time (gaps over PAUSE_MS excluded)
+STREAK = 4                      # clean cycles in a row needed (user; was 3)
+# The first cycles of each streak are dropped (re-warm-up after a slip):
+# 1st +11% vs the rest of the streak, 2nd +3% (24% of them >10% slower),
+# 3rd on par (17 streaks of 6+, 2026-11-22).
+STREAK_WARMUP = 2
+GRID_ROWS = (2, 2)              # rows of the grid shown before / after the current one
 PAUSE_MS = 1500                 # longer gaps don't count as transitions
 STRETCH_S = 3 * 60              # active measuring time between breaks
 BREAK_S = 30
@@ -128,6 +149,7 @@ def canonical(pattern):
 # key mod is held (the layer switch; the press of mod is logged with index
 # MOD_INDEX and doesn't count as an error).
 MOD_INDEX = -2
+RESTART_INDEX = -3   # Backspace in a trial: start the pattern again (protocol 3)
 
 
 def key_of(e):
@@ -423,12 +445,12 @@ def space_row_plan():
     return [canonical(p) for p in pats]
 
 
-def oneshot_plan():
-    """One-shot layer key: tap the layer key, then the letter (no release to
-    time). Emulated by tapping LAYER_KEY as a plain key. Home-row pairs of
-    the layer plan + Space: one-shot before the first letter, before the
-    second, or before each (two taps). 18 patterns; compare with the held
-    variants of the layer plan."""
+def oneshot_space_plan():
+    """One-shot layer key with Space: the home-row pairs of the layer plan +
+    Space, Sft tapped before the first, the second or each letter. 18
+    patterns. Replaced in focus-7 by oneshot_plan: with Space the thumb
+    makes up to 3 of 5 presses on two keys and becomes the bottleneck
+    (user, 2026-11-22)."""
     pats = []
     for a, b in itertools.permutations(("r2c2", "r2c3", "r2c4"), 2):
         pats += [(LAYER_KEY, a, b, "t4"), (a, LAYER_KEY, b, "t4"),
@@ -436,10 +458,45 @@ def oneshot_plan():
     return [canonical(p) for p in pats]
 
 
+ONESHOT_PINKY = "r2c6"
+
+
+def oneshot_plan():
+    """One-shot layer key: tap it, then the letter (no release to time).
+    Emulated by tapping a plain key. Like layer-fingers (no Space, the
+    thumb presses only the one-shot key): finger triples n r l in both
+    orders, LAYER_KEY tapped before each layered letter, for every
+    non-empty set of letters (14; the plain triples are in layer-fingers).
+    Plus the one-shot key on the pinky (ONESHOT_PINKY, outer column),
+    tapped before one letter of the triples, each position in turn (6).
+    20 patterns."""
+    pats = []
+    tris = (("r2c2", "r2c3", "r2c4"), ("r2c4", "r2c3", "r2c2"))
+    for tri in tris:
+        for mask in itertools.product((0, 1), repeat=3):
+            if any(mask):
+                pats.append(tuple(k for x, m in zip(tri, mask)
+                                  for k in ((LAYER_KEY, x) if m else (x,))))
+    for tri in tris:
+        for i in range(3):
+            pats.append(tri[:i] + (ONESHOT_PINKY,) + tri[i:])
+    return [canonical(p) for p in pats]
+
+
+def oneshot_pairs_plan():
+    """One-shot key before home-row pairs, 'Sft a b' and '; a b'
+    (ONESHOT_PINKY) for every ordered pair: thumb vs pinky one-shot
+    directly, 12 patterns; plain pairs 'a b' measured earlier (added
+    2026-11-22 while focus-7 was running)."""
+    return [canonical((key, a, b)) for key in (LAYER_KEY, ONESHOT_PINKY)
+            for a, b in itertools.permutations(("r2c2", "r2c3", "r2c4"), 2)]
+
+
 def focus_plan():
     return list(dict.fromkeys(scissors_im_plan() + lateral_plan() + sf_index_plan()
                               + layer_plan() + layer_fingers_plan() + space_row_plan()
-                              + oneshot_plan()))
+                              + oneshot_plan() + oneshot_space_plan()
+                              + oneshot_pairs_plan()))
 
 
 def _layer_pairs(pairs):
@@ -457,11 +514,12 @@ FOCUS_SPLIT = {
     "focus-4": lambda: _layer_pairs([("r2c2", "r2c4"), ("r2c3", "r2c4")]),  # 16
     "focus-5": lambda: layer_fingers_plan(),                                 # 16
     "focus-6": lambda: space_row_plan(),                                     # 12
-    "focus-7": lambda: oneshot_plan(),                                       # 18
+    "focus-7": lambda: oneshot_plan(),                                       # 20
     "focus-8": lambda: scissors_far_plan(cols=(2,)),                         # 14
     "focus-9": lambda: scissors_far_plan(cols=(3,)),                         # 14
     "focus-10": lambda: pinky_reach_plan(),                                  # 16
     "focus-11": lambda: spread_ip_plan(),                                    # 12
+    "focus-12": lambda: oneshot_pairs_plan(),                                # 12
 }
 
 
@@ -469,6 +527,10 @@ def space_last(pattern):
     """Rotate a cyclic pattern so Space comes last, like the end of a word."""
     p = list(pattern)
     if "t4" not in p:
+        for key in (LAYER_KEY, ONESHOT_PINKY):   # tapped one-shot key: show it first
+            if key in p:
+                i = p.index(key)
+                return p[i:] + p[:i]
         return display_order(p)
     i = p.index("t4")
     return p[i + 1:] + p[:i + 1]
@@ -480,14 +542,16 @@ PLANS = {"phase1": phase1_plan, "phase2a": phase2a_plan, "pilot-words": pilot_wo
          "sf-index": sf_index_plan, "scissors-far": scissors_far_plan,
          "pinky-reach": pinky_reach_plan, "spread-ip": spread_ip_plan,
          "layer": layer_plan, "layer-fingers": layer_fingers_plan,
-         "space-row": space_row_plan, "oneshot": oneshot_plan, **FOCUS_SPLIT}
+         "space-row": space_row_plan, "oneshot": oneshot_plan,
+         "oneshot-space": oneshot_space_plan,
+         "oneshot-pairs": oneshot_pairs_plan, **FOCUS_SPLIT}
 # Plans run in their own order, with planned repeats inside one session.
 FIXED_ORDER = {"pilot-words", "pilot-chain", "pilot-real"}
 # Plans whose words are shown as planned, not rotated by display_order.
 AS_PLANNED = {"pilot-chain", "pilot-real"}
 # Plans whose patterns are shown with Space last.
 SPACE_LAST = {"scissors", "scissors-im", "scissors-far", "pinky-reach", "spread-ip",
-              "lateral", "sf-index", "layer", "space-row", "oneshot",
+              "lateral", "sf-index", "layer", "space-row", "oneshot-space",
               *FOCUS_SPLIT}
 # Plans whose patterns count as done only from their own trials (their
 # reference patterns were measured elsewhere too, but are needed in-session).
@@ -628,59 +692,140 @@ def sequence_view(pattern, cycles, nxt, width=72):
     return "\n".join(lines)
 
 
-def run_trial(kb, pattern, header, cycles):
+def run_trial(kb, pattern, header):
+    """Continuous typing until the speed has settled (protocol 3). Returns
+    (status, presses, info); info has cycles, warmup_cycles, stable, errors,
+    paused_s. The highlighted key is always the next one: a wrong key gets
+    index -1 and no slot, and the highlight stays until the right key comes.
+    errors = slips (a run of wrong keys counts once)."""
     k = len(pattern)
-    total = cycles * k
-    # words: number the keys in typing order, to help remember the sequence
     word = WORD_TEXT.get(tuple(pattern))
     labels = {key_of(e): (f"{i + 1}:{LABEL[key_of(e)]}" if k >= 4 and not word
                           else LABEL[key_of(e)])
               for i, e in enumerate(pattern)}
     mods = {mod_of(e) for e in pattern} - {None}
     labels.update({m: LABEL[m] for m in mods})
+    w = max(len(label(e)) for e in pattern)
+    per_line = k * max(1, 72 // ((w + 1) * k + 2))   # whole cycles per grid row
     held = set()
-    presses, nxt, errors = [], 0, 0
+    presses, layer_at = [], {}   # layer_at: press index -> held modifiers
+    nxt, lost, errors, paused_s = 0, False, 0, 0.0
+    info = {"cycles": 0, "warmup_cycles": 0, "stable": False}
+
+    def matches(e, pos, h):
+        # a letter typed with the wrong layer is an error; Space isn't
+        return pos == key_of(e) and (pos.startswith("t") or h == {mod_of(e)} - {None})
+
+    def typing_s():
+        downs = [p[1] for p in presses if p[3] != MOD_INDEX]
+        return sum(d for d in (b - a for a, b in zip(downs, downs[1:])) if d <= PAUSE_MS) / 1000
+
+    def progress():
+        """Update info; True when the trial is done."""
+        cyc = counted_cycles(presses, k)[WARMUP_CLEAN:]
+        win = cyc[-STABLE_N:]
+        if win:
+            info["warmup_cycles"], info["cycles"] = win[0][0], win[-1][0] + 1
+        if len(win) == STABLE_N:
+            h = STABLE_N // 2
+            first = statistics.median(ms for _, ms in win[:h])
+            second = statistics.median(ms for _, ms in win[h:])
+            if second >= first * (1 - MAX_SPEEDUP):
+                info["stable"] = True
+                return True
+        return False
+
+    def capped():
+        return nxt // k >= MAX_CYCLES or typing_s() >= MAX_TYPING_S
 
     def show(msg=""):
         intro = ([f"   word: {word}" + (f"  (typed {''.join(LABEL[p] for p in pattern[:-1])})"
                                          if any(ch in SWAPS for ch in word) else ""),
                   "   first cycles slowly until it flows, then normal speed", ""]
                  if word else [])
+        # the pattern laid out cycle after cycle; typed slots green, missed ones
+        # red, the next one highlighted; the grid moves up one row at a time
+        typed_slots = {p[3] for p in presses if p[3] >= 0}
+        row = nxt // per_line
+        lines = []
+        for r in range(max(0, row - GRID_ROWS[0]), row + GRID_ROWS[1] + 1):
+            cells = []
+            for i in range(r * per_line, (r + 1) * per_line):
+                text = f"{label(pattern[i % k]):<{w}}"
+                if i == nxt:
+                    text = f"\x1b[1;97;{41 if lost else 44}m{text}\x1b[0m"
+                elif i < nxt:
+                    text = (f"\x1b[2;32m{text}\x1b[0m" if i in typed_slots
+                            else f"\x1b[1;31m{'x':<{w}}\x1b[0m")
+                cells.append(text + ("   " if i % k == k - 1 else " "))
+            lines.append("   " + "".join(cells).rstrip())
+        n_clean = len(counted_cycles(presses, k))
+        state = (f"warm-up {n_clean}/{WARMUP_CLEAN}" if n_clean < WARMUP_CLEAN
+                 else f"measuring {min(n_clean - WARMUP_CLEAN, STABLE_N)}/{STABLE_N}")
         screen(header, "", draw_keyboard(labels), "", *intro,
-               sequence_view(pattern, cycles, nxt), "", f"   errors: {errors}", msg)
+               *lines, "",
+               f"   counted cycles: {n_clean}   ·   {state}   ·   errors: {errors}", msg)
 
     restart_ok = REDO_KEY not in {key_of(e) for e in pattern}
-    show("   start whenever ready   (Del = pause" + (", Bsp = start over)" if restart_ok else ")"))
+    show("   start whenever ready; the highlighted key is always the next one"
+         "   (Del = pause" + (", Bsp = start the pattern again)" if restart_ok else ")"))
     open_presses = {}
-    while nxt < total:
+    done = False
+    while not done:
         for pos, down, t in kb.events(None):
             if pos == "quit":
-                return "quit", presses
+                return "quit", presses, info
             if not down:
                 held.discard(pos)
                 if pos in open_presses:
                     presses[open_presses.pop(pos)][2] = t
                 continue
             if pos in PAUSE_KEYS or pos == "blur":
-                return "paused", presses
+                screen("Paused: the trial goes on where you left off.", "",
+                       "   (Leaving the terminal, e.g. a screen lock, pauses too.)",
+                       "   Key presses in other windows are ignored.",
+                       "   Press any measurement key here to continue, Esc to quit.")
+                t_pause = time.time()
+                key = kb.next_press()[0]
+                paused_s += time.time() - t_pause
+                info["paused_s"] = paused_s
+                if key == "quit":
+                    return "quit", presses, info
+                show("   go on from the highlighted key")
+                break
             if pos == REDO_KEY and restart_ok:
-                return "restart", presses
+                # start the pattern again: the highlight moves to the start of
+                # the next cycle; the cycle left unfinished is never counted
+                presses.append([pos, t, None, RESTART_INDEX])
+                if nxt % k:
+                    nxt += k - nxt % k
+                lost = False
+                show("   from the start of the pattern")
+                continue
             if pos in mods:
                 held.add(pos)
                 presses.append([pos, t, None, MOD_INDEX])
                 open_presses[pos] = len(presses) - 1
                 continue
-            e = pattern[nxt % k]
-            want = {mod_of(e)} - {None}
-            # a letter typed with the wrong layer is an error; Space isn't
-            ok = pos == key_of(e) and (pos.startswith("t") or held == want)
-            presses.append([pos, t, None, nxt if ok else -1])
-            open_presses[pos] = len(presses) - 1
-            nxt += 1            # a wrong key takes its slot: keep the rhythm
-            if not ok:
-                errors += 1
-            show("" if ok else "   \x1b[31mwrong key\x1b[0m")
-            if nxt >= total:
+            i = len(presses)
+            layer_at[i] = set(held)
+            open_presses[pos] = i
+            msg = ""
+            if matches(pattern[nxt % k], pos, held):
+                presses.append([pos, t, None, nxt])
+                nxt += 1
+                lost = False
+            else:
+                # the highlighted key is always the next one: a wrong key is an
+                # error, the highlight stays (no guessing where the user is)
+                presses.append([pos, t, None, -1])
+                if not lost:
+                    errors += 1
+                lost = True
+                msg = "   \x1b[31mwrong key\x1b[0m - type the highlighted key"
+            done = (not lost and progress()) or capped()
+            show(msg)
+            if done:
                 break
     # collect releases of the last keys briefly
     deadline = time.time() + 0.4
@@ -688,7 +833,8 @@ def run_trial(kb, pattern, header, cycles):
         for pos, down, t in kb.events(0.05):
             if not down and pos in open_presses:
                 presses[open_presses.pop(pos)][2] = t
-    return "done", presses
+    info.update(errors=errors, paused_s=round(paused_s, 1))
+    return "done", presses, info
 
 
 RATING_NAMES = {1: "effortless", 2: "fine", 3: "some effort", 4: "uncomfortable", 5: "strain"}
@@ -720,8 +866,8 @@ def ask_rating(kb, header):
             return "skip"
 
 
-def summarize(pattern, presses):
-    tr = transitions({"pattern": pattern, "presses": presses})
+def summarize(trial):
+    tr = transitions(trial)
     by = {}
     for a, b, ms in tr:
         by.setdefault((a, b), []).append(ms)
@@ -733,13 +879,19 @@ def summarize(pattern, presses):
 
 def cmd_run(args):
     os.makedirs(DATA, exist_ok=True)
-    done = {}   # canonical pattern -> number of sessions with an ok protocol-2 trial
+    # canonical pattern -> days with an ok trial (protocol 2 on): each round on
+    # a separate day (user, 2026-11-22); patterns measured today are skipped
+    days = collections.defaultdict(set)
+    today = datetime.date.today().isoformat()
     for t in load_trials():
         if args.plan in OWN_COUNT and not args.patterns and t.get("plan") != args.plan:
             continue
-        if t["status"] == "ok" and not t.get("control") and t.get("protocol", 1) >= PROTOCOL:
-            c = canonical(t["pattern"])
-            done[c] = done.get(c, 0) + 1
+        if t.get("protocol", 1) >= 3 and cycle_time(t) is None:
+            continue    # never settled into counted cycles: not done
+        if t["status"] == "ok" and not t.get("control") and t.get("protocol", 1) >= PROTOCOL_DONE:
+            days[canonical(t["pattern"])].add(t["time"][:10])
+    done = {c: len(d) for c, d in days.items()}
+    done_today = {c for c, d in days.items() if today in d}
     if args.patterns:
         with open(args.patterns) as f:
             plan = [canonical(["+".join(LABEL_TO_POS.get(y, y) for y in x.split("+"))
@@ -763,8 +915,8 @@ def cmd_run(args):
         total_plan = len(plan)
         measured = total_plan - len(todo)
     else:
-        # each pattern at most once per session; least-measured first
-        todo = [p for p in plan if done.get(p, 0) < args.repeats]
+        # each pattern at most once per day; least-measured first
+        todo = [p for p in plan if done.get(p, 0) < args.repeats and p not in done_today]
         random.shuffle(todo)
         todo.sort(key=lambda p: (done.get(p, 0), tier(p)))
         todo = spread_fingers(todo, done)
@@ -792,28 +944,10 @@ def cmd_run(args):
             m, sec = divmod(int(active_s()), 60)
             header = (f"{label}   ·   stretch {stretch}/{args.stretches} {m}:{sec:02d}"
                       f"   ·   previous: {last_summary or '-'}")
-            k = len(pattern)
-            if plan_name in PLAN_CYCLES and not control:
-                cycles, warmup = PLAN_CYCLES[plan_name]
-            elif any(mod_of(e) for e in pattern):
-                cycles, warmup = MOD_CYCLES   # layer switches need practice (user)
-            else:
-                cycles, warmup = CYCLES[k], WARMUP_CYCLES[k]
-            status, presses = run_trial(kb, pattern, header, cycles)
+            status, presses, info = run_trial(kb, pattern, header)
+            paused_s += info.get("paused_s", 0.0)
             if status == "quit":
                 return "quit"
-            if status == "restart":
-                continue
-            if status == "paused":
-                screen("Paused (trial discarded).", "",
-                       "   Key presses in other windows are ignored.",
-                       "   Press any measurement key here to continue, Esc to quit.")
-                t_pause = time.time()
-                key = kb.next_press()[0]
-                paused_s += time.time() - t_pause
-                if key == "quit":
-                    return "quit"
-                continue
             rating = ask_rating(kb, header)
             if rating == "quit":
                 return "quit"
@@ -824,11 +958,13 @@ def cmd_run(args):
                    "pattern": pattern, "word": WORD_TEXT.get(tuple(pattern)), "control": control,
                    "status": "skipped" if rating == "skip" else "ok",
                    "rating": rating if isinstance(rating, int) else None,
-                   "cycles": cycles, "warmup_cycles": warmup, "advance_on_error": True,
-                   "presses": presses}
+                   "cycles": info["cycles"], "warmup_cycles": info["warmup_cycles"],
+                   "stable": info["stable"], "errors": info["errors"],
+                   "streak": [STREAK, STREAK_WARMUP],
+                   "paused_s": info["paused_s"], "presses": presses}
             with open(TRIALS, "a") as f:
                 f.write(json.dumps(rec) + "\n")
-            last_summary = summarize(pattern, presses)
+            last_summary = summarize(rec)
             n += 1
             return rec["status"]
 
@@ -899,17 +1035,51 @@ def cmd_run(args):
         print(f"\nSaved {n} trials to {os.path.relpath(TRIALS)}")
 
 
+def clean_cycles(presses, k):
+    """(cycle, ms) of every complete cycle: slots c*k .. c*k+k all typed
+    correctly, no wrong key between them, no gap over PAUSE_MS on average.
+    Protocol 2 left a wrong key's slot out; protocol 3 gives wrong keys no
+    slot, hence the check for wrong keys in between."""
+    t = {idx: down for _pos, down, _up, idx in presses if idx >= 0}
+    wrong = sorted(down for _pos, down, _up, idx in presses if idx in (-1, RESTART_INDEX))
+    out = []
+    for c in range(max(t) // k if t else 0):
+        a, b = c * k, c * k + k
+        if not all(i in t for i in range(a, b + 1)) or t[b] - t[a] >= PAUSE_MS * k:
+            continue
+        j = bisect.bisect_right(wrong, t[a])
+        if j < len(wrong) and wrong[j] < t[b]:
+            continue
+        out.append((c, t[b] - t[a]))
+    return out
+
+
+def counted_cycles(presses, k, streak=None):
+    """Protocol 3: clean cycles inside streaks of at least `streak[0]` in a
+    row, without the first `streak[1]` of each (re-warm-up after a slip).
+    Default: STREAK, STREAK_WARMUP; trials store the rule they were
+    recorded with (before 2026-11-22 ~11:40, without the field: 3 and 1)."""
+    need, drop = streak or (STREAK, STREAK_WARMUP)
+    out, run = [], []
+    for c, ms in clean_cycles(presses, k) + [(None, None)]:
+        if run and (c is None or c != run[-1][0] + 1):
+            if len(run) >= need:
+                out += run[drop:]
+            run = []
+        if c is not None:
+            run.append((c, ms))
+    return out
+
+
 def cycle_time(trial):
     """Median duration of one full pass through the pattern, in ms."""
     k = len(trial["pattern"])
     warmup = trial.get("warmup_cycles", WARMUP_CYCLES[k])
-    t = {idx: down for _pos, down, _up, idx in trial["presses"] if idx >= 0}
-    cyc = []
-    for c in range(warmup, trial["cycles"]):
-        a, b = c * k, c * k + k
-        # all slots correct (a wrong key leaves its slot out, see run_trial)
-        if all(i in t for i in range(a, b + 1)) and t[b] - t[a] < PAUSE_MS * k:
-            cyc.append(t[b] - t[a])
+    if trial.get("protocol", 1) >= 3:
+        cycles = counted_cycles(trial["presses"], k, trial.get("streak", (3, 1)))
+    else:
+        cycles = clean_cycles(trial["presses"], k)
+    cyc = [ms for c, ms in cycles if warmup <= c < trial["cycles"]]
     return statistics.median(cyc) if cyc else None
 
 
@@ -917,8 +1087,8 @@ def cmd_stats(args):
     trials = load_trials()
     ok = [t for t in trials if t["status"] == "ok"]
     print(f"{len(trials)} trials ({len(ok)} ok, {len(trials) - len(ok)} skipped)")
-    p2 = [t for t in ok if t.get("protocol", 1) >= PROTOCOL]
-    print(f"  protocol 1 (exploratory): {len(ok) - len(p2)},  protocol {PROTOCOL}: {len(p2)}")
+    p2 = [t for t in ok if t.get("protocol", 1) >= 2]
+    print(f"  protocol 1 (exploratory): {len(ok) - len(p2)},  protocols 2-{PROTOCOL}: {len(p2)}")
 
     sessions = sorted({t["session"] for t in p2})
     print("\nPhase 1, protocol 2: cycle time in ms (rating) per session")
@@ -1106,7 +1276,7 @@ def main():
     r.add_argument("--patterns", help="file with one pattern per line, e.g. 'r2c2 r2c3 r1c4'")
     r.add_argument("--plan", choices=sorted(PLANS), default="phase1")
     r.add_argument("--repeats", type=int, default=3,
-                   help="target number of sessions in which each pattern is measured")
+                   help="target number of days on which each pattern is measured (one round a day)")
     sub.add_parser("stats")
     ty = sub.add_parser("type", help="typing test: type a text normally, key events saved")
     ty.add_argument("--layout", required=True, help="name of the layout being typed on, e.g. opt-2026-11-21")

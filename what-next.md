@@ -57,12 +57,17 @@ reasons in [docs/design-principles.md](docs/design-principles.md) (decision log)
 
 ## Next steps
 
-1. **Measurements** (the user; pause keystats): `python3 measure/measure.py
-   run --plan focus-N`. Done: focus-1 to 5 round 1. To do, in this order:
-   - `focus-6` space-row (12), `focus-7` one-shot (18): one-shot cost
-     decides the layer key and how much goes on one-shot layers;
+1. **Measurements** (the user; pause keystats). Protocol 3 since
+   2026-11-22: continuous typing, resync after slips, stops when the
+   speed settles (docs/measurement-plan.md, Protocol).
+   `python3 measure/measure.py
+   run --plan focus-N`. Done: focus-1 to 6 round 1. To do, in this order:
+   - `focus-7` one-shot (20; redesigned 2026-11-22: no Space, plus a
+     pinky one-shot on r2c6): one-shot cost decides the layer key, its
+     place (thumb or pinky) and how much goes on one-shot layers;
    - `focus-8` index-ring scissors (14), `focus-9` middle-pinky (14),
-     `focus-10` pinky reach (16), `focus-11` index c1 + pinky (12);
+     `focus-10` pinky reach (16), `focus-11` index c1 + pinky (12),
+     `focus-12` thumb vs pinky one-shot before pairs (12);
    - rounds 2-3 of focus-1 to 5 on other days.
    Then `python3 analysis/measurements.py focus` (add report sections for
    focus-8 to 11) and extend `optimizer/fit.py`: `sc_far`, `spread_ip`,

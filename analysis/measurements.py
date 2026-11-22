@@ -20,7 +20,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "measure"))
-from measure import (FINGERS, LABEL, LAYER_KEY, ROLL_IN, ROLL_OUT, canonical,  # noqa: E402
+from measure import (FINGERS, LABEL, LAYER_KEY, ONESHOT_PINKY, ROLL_IN, ROLL_OUT, canonical,  # noqa: E402
                      cycle_time, focus_plan, label, layer_plan, scissors_im_plan, sf_index_plan,
                      load_trials, phase1_plan, phase2a_plan, transitions)
 
@@ -30,9 +30,12 @@ def name(p):
 
 
 def trials(control=False, plan=None):
-    """ok protocol-2 trials; plan = value of the trial's 'plan' field, if given."""
+    """ok trials of protocol 2 on; plan = value of the trial's 'plan' field, if
+    given. Protocol-3 trials that never settled into counted cycles (the cap
+    hit while lost) are left out entirely, their rating too."""
     return [t for t in load_trials()
             if t.get("protocol", 1) >= 2 and t["status"] == "ok"
+            and not (t.get("protocol", 1) >= 3 and cycle_time(t) is None)
             and t["control"] == control and (plan is None or t.get("plan") == plan)]
 
 
@@ -223,8 +226,8 @@ def warmup(plan="pilot-chain"):
 
 
 FOCUS_PLANS = {"scissors", "scissors-im", "lateral", "sf-index", "layer", "layer-fingers",
-               "space-row", "oneshot", "focus-1", "focus-2", "focus-3", "focus-4", "focus-5",
-               "focus-6", "focus-7"}
+               "space-row", "oneshot", "oneshot-space", "focus-1", "focus-2", "focus-3", "focus-4", "focus-5",
+               "focus-6", "focus-7", "focus-12", "oneshot-pairs"}
 ROW = {1: "top", 2: "home", 3: "bottom"}
 
 
@@ -326,19 +329,6 @@ def focus():
                cell(get(L + a, L + b, "t4"), ref)]
         print(f"  {LABEL[a]} {LABEL[b]:4}" + "".join(f"{x:>15}" for x in row))
 
-    S = LAYER_KEY
-    print(f"\nONE-SHOT vs HELD LAYER KEY ({LABEL[S]} tapped vs held): cycle ms,"
-          "\n  diff vs plain 'a b Spc' (rating)")
-    print(f"  {'pair':6}{'layer on':>9}{'held':>15}{'one-shot':>15}")
-    for a, b in itertools.permutations(("r2c2", "r2c3", "r2c4"), 2):
-        ref = get(a, b, "t4")
-        for which, held, tap in (
-                ("first", (L + a, b, "t4"), (S, a, b, "t4")),
-                ("second", (a, L + b, "t4"), (a, S, b, "t4")),
-                ("both", (L + a, L + b, "t4"), (S, a, S, b, "t4"))):
-            print(f"  {LABEL[a]} {LABEL[b]:4}{which:>9}{cell(get(*held), ref):>15}"
-                  f"{cell(get(*tap), ref):>15}")
-
     print(f"\nLAYER SWITCH WITHOUT SPACE ({LABEL[LAYER_KEY]} held, thumb presses nothing else):"
           "\n  cycle ms, diff vs plain (rating); held for: which letters")
     for tri in (("r2c2", "r2c3", "r2c4"), ("r2c4", "r2c3", "r2c2")):
@@ -348,6 +338,39 @@ def focus():
             pat = tuple(L + x if m else x for x, m in zip(tri, mask))
             which = " ".join(LABEL[x] for x, m in zip(tri, mask) if m) or "none"
             print(f"    {which:8} {cell(get(*pat), None if not any(mask) else ref)}")
+
+    S = LAYER_KEY
+    print(f"\nONE-SHOT vs HELD LAYER KEY, no Space ({LABEL[S]} tapped before each layered"
+          f"\n  letter vs held through it): cycle ms, diff vs plain (rating)")
+    for tri in (("r2c2", "r2c3", "r2c4"), ("r2c4", "r2c3", "r2c2")):
+        ref = get(*tri)
+        print(f"  {' '.join(LABEL[x] for x in tri):8}{'held':>15}{'one-shot':>15}")
+        for mask in itertools.product((0, 1), repeat=3):
+            if not any(mask):
+                continue
+            held = tuple(L + x if m else x for x, m in zip(tri, mask))
+            tap = tuple(k for x, m in zip(tri, mask) for k in ((S, x) if m else (x,)))
+            which = " ".join(LABEL[x] for x, m in zip(tri, mask) if m)
+            print(f"    {which:6}{cell(get(*held), ref):>15}{cell(get(*tap), ref):>15}")
+
+    P = ONESHOT_PINKY
+    print(f"\nONE-SHOT ON THE PINKY ({LABEL[P]} = {P} tapped before one letter of a triple):"
+          f"\n  cycle ms, diff vs plain (rating)")
+    for tri in (("r2c2", "r2c3", "r2c4"), ("r2c4", "r2c3", "r2c2")):
+        ref = get(*tri)
+        print(f"  {' '.join(LABEL[x] for x in tri)}")
+        for i in range(3):
+            print(f"    {LABEL[tri[i]]:6}{cell(get(*tri[:i], P, *tri[i:]), ref):>15}")
+
+    P = ONESHOT_PINKY
+    print(f"\nONE-SHOT ON THE PINKY ({LABEL[P]} = {P}) vs THUMB ({LABEL[S]}), tapped, then"
+          f"\n  two letters: cycle ms, diff vs the plain pair (rating)")
+    print(f"  {'':8}{'pinky':>15}{'thumb':>15}")
+    for a, b in itertools.permutations(("r2c2", "r2c3", "r2c4"), 2):
+        ref = get(a, b)
+        print(f"  {LABEL[a]} {LABEL[b]:5}{cell(get(P, a, b), ref):>15}"
+              f"{cell(get(S, a, b), ref):>15}")
+
 
     print("\nSPACE AND ROW: index-middle + Space vs index-middle-ring, by row;"
           "\n  diff vs the home row (rating). Space stretch = Space diff - ring diff")
