@@ -112,9 +112,17 @@ reasons in [docs/design-principles.md](docs/design-principles.md) (decision log)
   the model has bigrams only (no rolls, trigrams).
 - **Thumbs:** the model puts Space on t4; the user now has it innermost.
 - **Shortcuts:** Ctrl + letter comfort isn't modelled.
-- **Typing runs as data:** typing.jsonl has 3 runs on this layout. Odd:
-  Space → Space within ~25 ms (27 times in the first run, 3-4 later):
-  double Space events? Check before analysing.
+- **Typing runs as data:** typing.jsonl has 3 runs on this layout.
+  Space → Space within ~25 ms is autorepeat: Space held by mistake for
+  the layer key or Shift (run 1: one 888 ms hold sent 29 spaces). Drop
+  those before analysing.
+- **Coverage (2026-11-22):** 447 trials, 222 distinct patterns; 217 of
+  784 ordered key pairs (28%) occur in measured patterns, but 55% of
+  the current layout's key-pair transitions by corpus frequency (layer
+  ignored). The rest rely on parameters. 17 more pairs give 70%, 41
+  give 80%, 84 give 90%. Measuring everything is out of reach; once the
+  layout settles, measure the layout's top unmeasured pairs (`r1c6 → Spc`,
+  `Enter → r1c6`, `r2c5 → r3c2`, ...) as a check of the model.
 
 ## Open questions for the user
 
