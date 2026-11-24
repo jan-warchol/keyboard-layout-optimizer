@@ -147,6 +147,7 @@ reasons in [docs/design-principles.md](docs/design-principles.md) (decision log)
   focus-12 (thumb vs pinky one-shot) before deciding.
 - **One-shot Ctrl and Shift**: not in the Chrysalis UI; the user will ask
   for a keymap file with codes 49153 (Ctrl) / 49154 (Shift) on the thumbs.
+- Consider additional space in second layer.
 
 - When did dictation start for notes? The cut is 2026-07-01, from note
   lengths.
